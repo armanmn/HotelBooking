@@ -1,17 +1,38 @@
-// routes/paymentRoutes.js
+import express from "express";
+import { 
+  verifyToken, 
+  verifyAdmin, 
+  verifyOfficeUser, 
+  verifyFinanceUser 
+} from "../middlewares/authMiddleware.js";
 
-const express = require('express');
+import { 
+  processPayment, 
+  getAllPayments, 
+  getUserPayments, 
+  getPaymentById, 
+  updatePaymentStatus, 
+  recordBankPayment 
+} from "../controllers/paymentController.js";
+
 const router = express.Router();
-const paymentController = require('../controllers/paymentController');
-const authMiddleware = require('../middleware/authMiddleware');
 
-// Ստեղծել նոր վճարում (պաշտպանված ռոուտ)
-router.post('/', authMiddleware, paymentController.createPayment);
+// ✅ Վճարում կատարելու API (B2C & B2B օգտատերեր)
+router.post("/", verifyToken, processPayment);
 
-// Ստանալ մուտք գործած օգտատիրոջ վճարումները (պաշտպանված ռոուտ)
-router.get('/my-payments', authMiddleware, paymentController.getUserPayments);
+// ✅ Ստանալ բոլոր վճարումները (Admin & Finance User)
+router.get("/", verifyToken, verifyFinanceUser, getAllPayments);
 
-// Ստանալ բոլոր վճարումները (միայն ադմինիստրատորների համար)
-router.get('/', authMiddleware, paymentController.getAllPayments);
+// ✅ Ստանալ օգտատիրոջ վճարումները (B2C & B2B)
+router.get("/my-payments", verifyToken, getUserPayments);
 
-module.exports = router;
+// ✅ Ստանալ կոնկրետ վճարման տվյալները ըստ ID-ի (Finance User)
+router.get("/:id", verifyToken, verifyFinanceUser, getPaymentById);
+
+// ✅ Վճարման կարգավիճակի թարմացում (Finance User)
+router.patch("/:id/status", verifyToken, verifyFinanceUser, updatePaymentStatus);
+
+// ✅ Բանկային վճարում մուտքագրելու API (Finance User)
+router.post("/record-bank-payment", verifyToken, verifyFinanceUser, recordBankPayment);
+
+export default router;

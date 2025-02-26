@@ -1,105 +1,99 @@
-// controllers/roomController.js
+import Room from "../models/Room.js";
+import Hotel from "../models/Hotel.js";
 
-const Room = require('../models/Room');
-const Hotel = require('../models/Hotel');
-
-// Ստանալ բոլոր սենյակները
-exports.getAllRooms = async (req, res) => {
+// ✅ Ստեղծել նոր սենյակ
+export const createRoom = async (req, res) => {
   try {
-    const rooms = await Room.find().populate('hotel', 'name location');
-    res.json(rooms);
-  } catch (error) {
-    res.status(500).json({ message: 'Սերվերի սխալ' });
-  }
-};
-
-// Ստանալ կոնկրետ սենյակ ըստ ID-ի
-exports.getRoomById = async (req, res) => {
-  try {
-    const room = await Room.findById(req.params.id).populate('hotel', 'name location');
-    if (!room) {
-      return res.status(404).json({ message: 'Սենյակը չի գտնվել' });
-    }
-    res.json(room);
-  } catch (error) {
-    res.status(500).json({ message: 'Սերվերի սխալ' });
-  }
-};
-
-// Ավելացնել նոր սենյակ
-exports.createRoom = async (req, res) => {
-  const { hotelId, type, description, price, maxGuests, availableDates } = req.body;
-
-  try {
+    const { hotelId } = req.params;
     const hotel = await Hotel.findById(hotelId);
+
     if (!hotel) {
-      return res.status(404).json({ message: 'Հյուրանոցը չի գտնվել' });
+      return res.status(404).json({ message: "Hotel not found" });
     }
 
-    const newRoom = new Room({
-      hotel: hotelId,
-      type,
-      description,
-      price,
-      maxGuests,
-      availableDates,
-    });
+    if (hotel.owner.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access Denied" });
+    }
 
-    await newRoom.save();
-
-    // Ավելացնել սենյակը հյուրանոցի սենյակների ցանկում
-    hotel.rooms.push(newRoom._id);
-    await hotel.save();
-
-    res.status(201).json(newRoom);
+    const newRoom = new Room({ ...req.body, hotel: hotelId });
+    const savedRoom = await newRoom.save();
+    res.status(201).json(savedRoom);
   } catch (error) {
-    res.status(500).json({ message: 'Սերվերի սխալ' });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// Թարմացնել սենյակ
-exports.updateRoom = async (req, res) => {
-  const { type, description, price, maxGuests, availableDates } = req.body;
-
+// ✅ Թարմացնել սենյակի տվյալները
+export const updateRoom = async (req, res) => {
   try {
-    const room = await Room.findById(req.params.id);
+    const room = await Room.findById(req.params.roomId);
+
     if (!room) {
-      return res.status(404).json({ message: 'Սենյակը չի գտնվել' });
+      return res.status(404).json({ message: "Room not found" });
     }
 
-    room.type = type || room.type;
-    room.description = description || room.description;
-    room.price = price || room.price;
-    room.maxGuests = maxGuests || room.maxGuests;
-    room.availableDates = availableDates || room.availableDates;
-
-    await room.save();
-
-    res.json(room);
-  } catch (error) {
-    res.status(500).json({ message: 'Սերվերի սխալ' });
-  }
-};
-
-// Ջնջել սենյակ
-exports.deleteRoom = async (req, res) => {
-  try {
-    const room = await Room.findById(req.params.id);
-    if (!room) {
-      return res.status(404).json({ message: 'Սենյակը չի գտնվել' });
-    }
-
-    await room.remove();
-
-    // Հեռացնել սենյակը համապատասխան հյուրանոցի սենյակների ցանկից
     const hotel = await Hotel.findById(room.hotel);
-    if (hotel) {
-      hotel.rooms.pull(room._id);
-      await hotel.save();
+    if (hotel.owner.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access Denied" });
     }
 
-    res.json({ message: 'Սենյակը հաջողությամբ ջնջվել է' });
+    const updatedRoom = await Room.findByIdAndUpdate(req.params.roomId, req.body, { new: true });
+    res.status(200).json(updatedRoom);
   } catch (error) {
-    res.status(500).json({ message: 'Սերվերի սխալ' });
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ✅ Ջնջել սենյակ
+export const deleteRoom = async (req, res) => {
+  try {
+    const room = await Room.findById(req.params.roomId);
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const hotel = await Hotel.findById(room.hotel);
+    if (hotel.owner.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access Denied" });
+    }
+
+    await Room.findByIdAndDelete(req.params.roomId);
+    res.status(200).json({ message: "Room deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ✅ Ստանալ հյուրանոցի բոլոր սենյակները
+export const getRoomsByHotel = async (req, res) => {
+  try {
+    const rooms = await Room.find({ hotel: req.params.hotelId });
+    res.status(200).json(rooms);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ✅ Ստանալ կոնկրետ սենյակ ըստ ID-ի
+export const getRoomById = async (req, res) => {
+  try {
+      const room = await Room.findById(req.params.id).populate("hotel");
+      if (!room) {
+          return res.status(404).json({ message: "Room not found" });
+      }
+
+      // Հաշվարկում ենք գինը ըստ օգտատիրոջ կարգավիճակի
+      let finalPrice = room.price; // Net price
+
+      if (req.user.role === "b2c") {
+          finalPrice = room.price * (1 + process.env.B2C_MARKUP / 100);
+      } else if (req.user.role === "b2b_sales_partner") {
+          finalPrice = room.price * (1 + req.user.markupPercentage / 100);
+      }
+
+      res.status(200).json({ ...room.toObject(), computedPrice: finalPrice });
+  } catch (error) {
+      res.status(500).json({ message: "Server error", error: error.message });
   }
 };

@@ -1,37 +1,52 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const dotenv = require('dotenv');
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import hotelRoutes from "./routes/hotelRoutes.js";
+import bookingRoutes from "./routes/bookingRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
+import b2bRoutes from "./routes/b2bRoutes.js";
+import financeRoutes from "./routes/financeRoutes.js"; // ✅ Ավելացվել է ֆինանսական API-ի համար
+import "./config/dotenv.js";
 
-dotenv.config();
-
-const authRoutes = require('./routes/authRoutes');
-const hotelRoutes = require('./routes/hotelRoutes');
-const roomRoutes = require('./routes/roomRoutes');
-const bookingRoutes = require('./routes/bookingRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
-
+// Սերվերի ստեղծում
 const app = express();
 
-app.use(cors());
-app.use(express.json());
-
-app.use('/api/auth', authRoutes);
-app.use('/api/hotels', hotelRoutes);
-app.use('/api/rooms', roomRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/payments', paymentRoutes);
-
-const PORT = process.env.PORT || 5001;
-
-mongoose.connect(process.env.MONGO_URI, {
-
-})
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
+// ✅ Middleware-ներ
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL, // Թույլատրված origin-ը (Frontend-ի URL)
+    credentials: true,
   })
-  .catch((error) => {
-    console.error('MongoDB connection error:', error);
-  });
+);
+app.use(express.json()); // JSON տվյալների համար
+app.use(cookieParser()); // Cookies-ի կառավարում
+
+// ✅ Ռոութերներ
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/hotels", hotelRoutes);
+app.use("/api/v1/bookings", bookingRoutes);
+app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/b2b", b2bRoutes);
+app.use("/api/v1/finance", financeRoutes); // ✅ Նոր ֆինանսական API
+
+// ✅ MongoDB-ի հետ միացում
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ MongoDB Connected");
+  } catch (error) {
+    console.error("❌ MongoDB Connection Error:", error);
+    process.exit(1);
+  }
+};
+
+// ✅ Սերվերի լսում
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  connectDB();
+  console.log(`🚀 Server running on port ${PORT}`);
+});

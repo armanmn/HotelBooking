@@ -1,17 +1,24 @@
-// routes/bookingRoutes.js
+import express from "express";
+import { verifyToken } from "../middlewares/authMiddleware.js";
+import {
+  createBooking,
+  getUserBookings,
+  getBookingById,
+  cancelBooking,
+} from "../controllers/bookingController.js";
 
-const express = require('express');
 const router = express.Router();
-const bookingController = require('../controllers/bookingController');
-const authMiddleware = require('../middleware/authMiddleware');
 
-// Ստեղծել նոր ամրագրում (պաշտպանված ռոուտ)
-router.post('/', authMiddleware, bookingController.createBooking);
+// 🔹 Ստեղծել ամրագրում (B2C & B2B)
+router.post("/", verifyToken, createBooking);
 
-// Ստանալ մուտք գործած օգտատիրոջ ամրագրումները (պաշտպանված ռոուտ)
-router.get('/my-bookings', authMiddleware, bookingController.getUserBookings);
+// 🔹 Ստանալ օգտագործողի բոլոր ամրագրումները
+router.get("/", verifyToken, getUserBookings);
 
-// Չեղարկել ամրագրում ըստ ID-ի (պաշտպանված ռոուտ)
-router.delete('/:id', authMiddleware, bookingController.cancelBooking);
+// 🔹 Ստանալ կոնկրետ ամրագրում ըստ ID-ի
+router.get("/:id", verifyToken, getBookingById);
 
-module.exports = router;
+// 🔹 Չեղարկել ամրագրումը
+router.put("/:id/cancel", verifyToken, cancelBooking);
+
+export default router;

@@ -1,14 +1,69 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const PaymentSchema = new mongoose.Schema(
   {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    booking: { type: mongoose.Schema.Types.ObjectId, ref: "Booking", required: true },
-    amount: { type: Number, required: true },
-    paymentMethod: { type: String, enum: ["Card", "Bank Transfer"], required: true },
-    status: { type: String, enum: ["Pending", "Completed", "Failed"], default: "Pending" },
+    userId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User", 
+      required: true 
+    },
+    bookingId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Booking", 
+      required: true 
+    },
+    amount: { 
+      type: Number, 
+      required: true 
+    },
+    currency: { 
+      type: String, 
+      enum: ["AMD", "USD", "EUR", "RUB"], // ✅ Բոլոր ընդունված արժույթները
+      required: true 
+    },
+    exchangeRate: { 
+      type: Number, 
+      required: true 
+    }, // ✅ Ֆինանսական բաժինը սահմանում է փոխարժեքը
+    
+    convertedAmountAMD: { 
+      type: Number, 
+      required: true 
+    }, // ✅ Պահպանում ենք AMD-ով փոխարկված գումարը
+    
+    paymentMethod: { 
+      type: String, 
+      enum: ["credit_card", "paypal", "bank_transfer", "cash"], // ✅ Ավելացվել է "cash" տարբերակը
+      required: true 
+    },
+    transactionId: { 
+      type: String, 
+      unique: true 
+    }, // ✅ Անհատական ID (եթե առկա է)
+    
+    status: { 
+      type: String, 
+      enum: ["pending", "completed", "failed", "refunded"], 
+      default: "pending" 
+    },
+    
+    processedBy: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User", 
+      default: null 
+    }, // ✅ Վճարումը հաստատած աշխատակից
+    
+    processedAt: { 
+      type: Date 
+    }, // ✅ Վճարման հաստատման ժամկետ
+    
+    bankTransactionId: { 
+      type: String, 
+      default: null 
+    }, // ✅ Բանկային գործարքի համար (եթե առկա է)
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Payment", PaymentSchema);
+const Payment = mongoose.model("Payment", PaymentSchema);
+export default Payment;

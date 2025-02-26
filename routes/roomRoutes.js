@@ -1,23 +1,22 @@
-// routes/roomRoutes.js
+import express from "express";
+import { verifyToken, verifyAdmin, verifyHotelPartner } from "../middlewares/authMiddleware.js";
+import { getRoomsByHotel, createRoom, updateRoom, deleteRoom } from "../controllers/roomController.js";
 
-const express = require('express');
 const router = express.Router();
-const roomController = require('../controllers/roomController');
-const authMiddleware = require('../middleware/authMiddleware');
 
-// Ստանալ բոլոր սենյակները
-router.get('/', roomController.getAllRooms);
+// ✅ Ստանալ հյուրանոցի բոլոր սենյակները (guest-ները նույնպես կարող են տեսնել)
+router.get("/:hotelId/rooms", getRoomsByHotel);
 
-// Ստանալ կոնկրետ սենյակ ըստ ID-ի
-router.get('/:id', roomController.getRoomById);
+// ✅ Ստեղծել սենյակ (Միայն Hotel Partners)
+router.post("/:hotelId/rooms", verifyToken, verifyHotelPartner, createRoom);
 
-// Ավելացնել նոր սենյակ (միայն ադմինիստրատորների համար)
-router.post('/', authMiddleware, roomController.createRoom);
+// ✅ Թարմացնել սենյակ (Միայն Hotel Partners)
+router.put("/:hotelId/rooms/:roomId", verifyToken, verifyHotelPartner, updateRoom);
 
-// Թարմացնել սենյակ (միայն ադմինիստրատորների համար)
-router.put('/:id', authMiddleware, roomController.updateRoom);
+// ✅ Ջնջել սենյակ (Միայն Hotel Partners)
+router.delete("/:hotelId/rooms/:roomId", verifyToken, verifyHotelPartner, deleteRoom);
 
-// Ջնջել սենյակ (միայն ադմինիստրատորների համար)
-router.delete('/:id', authMiddleware, roomController.deleteRoom);
+// ✅ Ստանալ կոնկրետ սենյակի տվյալները
+router.get("/:hotelId/rooms/:roomId", getRoomById);
 
-module.exports = router;
+export default router;

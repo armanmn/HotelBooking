@@ -1,13 +1,28 @@
-// routes/authRoutes.js
+import express from "express";
+import { 
+  registerB2CUser, 
+  loginUser, 
+  getUserProfile, 
+  updateUserProfile, 
+  changePassword 
+} from "../controllers/authController.js";
+import { verifyToken } from "../middlewares/authMiddleware.js";
 
-const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/authController');
 
-// Գրանցում
-router.post('/register', authController.register);
+// ✅ Գրանցում (Միայն B2C)
+router.post("/register", registerB2CUser);
 
-// Մուտք
-router.post('/login', authController.login);
+// ✅ Մուտք
+router.post("/login", loginUser);
 
-module.exports = router;
+// ✅ Վերցնել օգտատիրոջ պրոֆիլը
+router.get("/profile", verifyToken, getUserProfile);
+
+// ✅ Թարմացնել օգտատիրոջ տվյալները (Անուն & Email)
+router.patch("/profile", verifyToken, updateUserProfile);
+
+// ✅ Փոխել գաղտնաբառը
+router.patch("/change-password", verifyToken, changePassword);
+
+export default router;
