@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import generateToken from "../utils/generateToken.js";
 
 // ✅ Գրանցում - Միայն B2C օգտատերերի համար
 export const registerB2CUser = async (req, res) => {
@@ -33,7 +34,6 @@ export const registerB2CUser = async (req, res) => {
   }
 };
 
-// ✅ Մուտք (Login)
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -48,11 +48,32 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    // ✅ Օգտագործում ենք մեր `generateToken` ֆունկցիան
+    generateToken(res, user._id, user.role);
 
-    res.status(200).json({ token, user });
+    // ✅ Հեռացնում ենք գաղտնաբառը պատասխանից
+    const { password: _, ...userData } = user._doc;
+
+    res.status(200).json({ message: "Login successful", user: userData });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ✅ Logout - Ջնջում է httpOnly cookie-ն
+export const logoutUser = async (req, res) => {
+  try {
+    res.cookie("jwt", "", { httpOnly: true, expires: new Date(0) }); // ✅ Ջնջում ենք cookie-ն
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ✅ Ստուգում է՝ արդյոք օգտատերը մուտք է գործել
+export const checkAuthStatus = async (req, res) => {
+  try {
+    res.status(200).json({ message: "User authenticated", user: req.user });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }

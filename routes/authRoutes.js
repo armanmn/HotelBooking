@@ -2,9 +2,11 @@ import express from "express";
 import { 
   registerB2CUser, 
   loginUser, 
+  logoutUser, 
   getUserProfile, 
   updateUserProfile, 
-  changePassword 
+  changePassword, 
+  checkAuthStatus  // ✅ Ավելացվել է checkAuthStatus ֆունկցիան
 } from "../controllers/authController.js";
 import { verifyToken } from "../middlewares/authMiddleware.js";
 
@@ -15,6 +17,12 @@ router.post("/register", registerB2CUser);
 
 // ✅ Մուտք
 router.post("/login", loginUser);
+
+// ✅ Logout (Հանում ենք httpOnly cookie-ն)
+router.post("/logout", logoutUser);
+
+// ✅ Ստուգում է՝ արդյոք օգտատերը մուտք է գործել
+router.get("/check", verifyToken, checkAuthStatus); // ✅ Այստեղ ավելացվել է checkAuthStatus ֆունկցիան
 
 // ✅ Վերցնել օգտատիրոջ պրոֆիլը
 router.get("/profile", verifyToken, getUserProfile);
