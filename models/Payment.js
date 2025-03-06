@@ -61,6 +61,17 @@ const PaymentSchema = new mongoose.Schema(
       type: String, 
       default: null 
     }, // ✅ Բանկային գործարքի համար (եթե առկա է)
+    
+    refundAmount: { 
+      type: Number,
+      default: 0
+    }, // ✅ Վերադարձվող գումարի չափը
+
+    penaltyFee: {
+      type: Number,
+      default: 0
+    }, // ✅ Տուգանքի չափը
+
   },
   { timestamps: true }
 );

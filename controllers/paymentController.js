@@ -12,20 +12,31 @@ export const processPayment = async (req, res) => {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    // Ստանում ենք ընթացիկ փոխարժեքները
     const globalSettings = await GlobalSettings.findOne();
     if (!globalSettings) {
       return res.status(500).json({ message: "Exchange rates not found" });
     }
 
-    // Կախված արժույթից՝ հաշվարկում ենք AMD համարժեքը
     const exchangeRate = globalSettings.exchangeRates[currency];
     if (!exchangeRate) {
       return res.status(400).json({ message: "Invalid currency or missing exchange rate" });
     }
     const convertedAmountAMD = amount * exchangeRate;
 
-    // Ստեղծում ենք նոր վճարում
+    let paymentStatus = "pending"; // ✅ Default կարգավիճակ
+
+    // ✅ Եթե վճարողը Sales Partner է, ստուգում ենք balance-ը
+    if (req.user.role === "b2b_sales_partner") {
+      if (req.user.balance >= convertedAmountAMD) {
+        req.user.balance -= convertedAmountAMD; // ✅ Պահում ենք գումարը balance-ից
+        await req.user.save();
+        paymentStatus = "completed"; // ✅ Եթե balance-ից է կատարվում, անմիջապես կատարված է
+      } else {
+        paymentStatus = "pending"; // ✅ Եթե balance-ը բավարար չէ, վճարումը սպասման մեջ է Finance User-ի հաստատման համար
+      }
+    }
+
+    // ✅ Ստեղծում ենք նոր վճարում՝ ստացված կարգավիճակով
     const newPayment = new Payment({
       userId: req.user.id,
       bookingId,
@@ -35,11 +46,20 @@ export const processPayment = async (req, res) => {
       convertedAmountAMD,
       paymentMethod,
       transactionId,
-      status: "pending",
+      status: paymentStatus,
+      processedBy: req.user.id,
+      processedAt: new Date(),
     });
 
     await newPayment.save();
-    res.status(201).json({ message: "Payment initiated successfully", payment: newPayment });
+
+    // ✅ Եթե վճարումը հաստատվել է, ապա booking-ը դարձնում ենք "paid"
+    if (paymentStatus === "completed") {
+      booking.status = "paid";
+      await booking.save();
+    }
+
+    res.status(201).json({ message: "Payment processed successfully", payment: newPayment });
   } catch (error) {
     res.status(500).json({ message: "Payment processing failed", error: error.message });
   }
@@ -152,5 +172,44 @@ export const recordBankPayment = async (req, res) => {
     res.status(201).json({ message: "Bank payment recorded successfully", payment: newPayment });
   } catch (error) {
     res.status(500).json({ message: "Failed to record bank payment", error: error.message });
+  }
+};
+
+// ✅ Finance User-ները պետք է կարողանան կատարել refund՝ նշելով "refundAmount" և "penaltyFee"։
+export const processRefund = async (req, res) => {
+  try {
+    const { paymentId, refundAmount, penaltyFee } = req.body;
+
+    const payment = await Payment.findById(paymentId);
+    if (!payment) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    if (payment.status !== "completed") {
+      return res.status(400).json({ message: "Only completed payments can be refunded" });
+    }
+
+    // ✅ Ստեղծում ենք refund գրառումը
+    const refundPayment = new Payment({
+      userId: payment.userId,
+      bookingId: payment.bookingId,
+      amount: -refundAmount, // ✅ Բացասական արժեք refund-ի համար
+      currency: payment.currency,
+      exchangeRate: payment.exchangeRate,
+      convertedAmountAMD: -refundAmount * payment.exchangeRate, // ✅ Պահպանում ենք AMD-ով վերադարձվող գումարը
+      paymentMethod: "refund",
+      transactionId: `refund-${payment.transactionId}`,
+      status: "refunded",
+      processedBy: req.user.id,
+      processedAt: new Date(),
+      refundAmount,
+      penaltyFee,
+    });
+
+    await refundPayment.save();
+
+    res.status(201).json({ message: "Refund processed successfully", refund: refundPayment });
+  } catch (error) {
+    res.status(500).json({ message: "Refund processing failed", error: error.message });
   }
 };

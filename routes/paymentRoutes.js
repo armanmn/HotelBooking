@@ -12,7 +12,8 @@ import {
   getUserPayments, 
   getPaymentById, 
   updatePaymentStatus, 
-  recordBankPayment 
+  recordBankPayment,
+  processRefund
 } from "../controllers/paymentController.js";
 
 const router = express.Router();
@@ -34,5 +35,8 @@ router.patch("/:id/status", verifyToken, verifyFinanceUser, updatePaymentStatus)
 
 // ✅ Բանկային վճարում մուտքագրելու API (Finance User)
 router.post("/record-bank-payment", verifyToken, verifyFinanceUser, recordBankPayment);
+
+router.post("/refund", verifyToken, verifyFinanceUser, processRefund);
+
 
 export default router;

@@ -2,6 +2,50 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import GlobalSettings from "../models/GlobalSettings.js";
 import Booking from "../models/Booking.js";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// ✅ Ստեղծում ենք ֆայլերի պահպանման config
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadPath = "uploads/avatars/";
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    cb(null, `${req.user.id}${path.extname(file.originalname)}`);
+  },
+});
+
+const upload = multer({ storage: storage });
+
+// ✅ Թարմացնում է օգտատիրոջ avatar-ը (Միայն ոչ-B2C user-ների համար)
+export const updateAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    if (req.user.role === "b2c") {
+      return res.status(403).json({ message: "B2C users cannot update avatar" });
+    }
+
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`; // ✅ Backend-ը տալիս է ճիշտ URL
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { avatar: avatarUrl },
+      { new: true }
+    ).select("avatar");
+
+    res.status(200).json({ message: "Avatar updated successfully", avatar: `http://localhost:5000${updatedUser.avatar}` }); // ✅ Ավելացնում ենք բազային URL
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 
 // ✅ Վերադարձնում է բոլոր user-ներին (Admin & Office User)
 export const getAllUsers = async (req, res) => {
@@ -26,7 +70,7 @@ export const getB2BReservations = async (req, res) => {
 // ✅ Վերադարձնում է B2B Hotel Partner-ի ամրագրումները
 export const getHotelPartnerBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({ hotelId: req.user.hotelPartnerId }).populate("userId", "name email");
+    const bookings = await Booking.find({ hotelId: req.user.hotelPartnerId }).populate("userId", "firstName lastName email");
     res.status(200).json(bookings);
   } catch (err) {
     res.status(500).json({ message: "Something went wrong", error: err.message });
@@ -57,6 +101,34 @@ export const updateSalesPartnerMarkup = async (req, res) => {
   }
 };
 
+// ✅ Թարմացնում է B2B Sales Partner-ի անհատական balance (Միայն Admin, Finance user)
+export const updateBalance = async (req, res) => {
+  try {
+    const { amount } = req.body;
+
+    if (amount < -10000) {
+      return res.status(400).json({ message: "Balance deduction is too high" });
+    }
+
+    const user = await User.findById(req.params.id);
+
+    if (!user || user.role !== "b2b_sales_partner") {
+      return res.status(404).json({ message: "Sales Partner not found" });
+    }
+
+    if (user.balance + amount < 0) {
+      return res.status(400).json({ message: "Insufficient balance" });
+    }
+
+    user.balance += amount;
+    await user.save();
+
+    res.status(200).json({ message: "Balance updated successfully", balance: user.balance });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 // ✅ Թարմացնում է B2C-ի ընդհանուր markup (Միայն Admin)
 export const updateB2CMarkup = async (req, res) => {
   try {
@@ -77,90 +149,6 @@ export const updateB2CMarkup = async (req, res) => {
   }
 };
 
-// ✅ Ստեղծում է B2B User (Hotel Partner կամ Sales Partner) (Միայն Admin)
-export const createB2BUser = async (req, res) => {
-  try {
-    const { name, email, password, role, hotelPartnerId, markupPercentage } = req.body;
-
-    if (!["b2b_hotel_partner", "b2b_sales_partner"].includes(role)) {
-      return res.status(400).json({ message: "Invalid role. Only B2B roles are allowed." });
-    }
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = new User({
-      name,
-      email,
-      password: hashedPassword,
-      role,
-      hotelPartnerId: role === "b2b_hotel_partner" ? hotelPartnerId : null,
-      markupPercentage: role === "b2b_sales_partner" ? markupPercentage : null
-    });
-
-    await newUser.save();
-
-    // ✅ Պատասխանից հեռացնում ենք գաղտնաբառը
-    const responseUser = {
-      id: newUser._id,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      hotelPartnerId: newUser.hotelPartnerId,
-      markupPercentage: newUser.markupPercentage
-    };
-
-    res.status(201).json({ message: "B2B User created successfully", newUser: responseUser });
-  } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
-
-// ✅ Ստեղծում է Office User կամ Finance User (Միայն Admin)
-export const createOfficeOrFinanceUser = async (req, res) => {
-  try {
-    const { name, email, password, role } = req.body;
-
-    if (!["office_user", "finance_user"].includes(role)) {
-      return res.status(400).json({ message: "Invalid role. Only Office or Finance users can be created." });
-    }
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = new User({
-      name,
-      email,
-      password: hashedPassword,
-      role
-    });
-
-    await newUser.save();
-
-    // ✅ Հեռացնում ենք գաղտնաբառը պատասխանից
-    const responseUser = {
-      id: newUser._id,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role
-    };
-
-    res.status(201).json({ message: "User created successfully", user: responseUser });
-  } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
-
 // ✅ Ջնջում է user (Միայն Admin)
 export const deleteUser = async (req, res) => {
   try {
@@ -178,5 +166,47 @@ export const deleteUser = async (req, res) => {
     res.status(200).json({ message: "User deleted successfully, related bookings updated" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ✅ Ստեղծում է Office User կամ Finance User (Միայն Admin)
+export const createOfficeOrFinanceUser = async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, role } = req.body;
+
+    if (!["office_user", "finance_user"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role. Only Office or Finance users can be created." });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = new User({
+      firstName,
+      lastName,
+      email,
+      password: hashedPassword,
+      role
+    });
+
+    await newUser.save();
+
+    // ✅ Հեռացնում ենք գաղտնաբառը պատասխանից
+    const responseUser = {
+      id: newUser._id,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
+      email: newUser.email,
+      role: newUser.role
+    };
+
+    res.status(201).json({ message: "User created successfully", user: responseUser });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };

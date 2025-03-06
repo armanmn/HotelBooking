@@ -15,6 +15,7 @@ export const createBooking = async (req, res) => {
     const room = await Room.findById(roomId);
     if (!room) return res.status(404).json({ message: "Room not found" });
 
+    // ✅ Ստեղծում ենք ամրագրումը՝ առանց balance-ից գումար պահելու
     const newBooking = new Booking({
       user: req.user.id,
       hotel: hotelId,

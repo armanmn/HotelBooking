@@ -3,10 +3,11 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
 
+
 // ✅ Գրանցում - Միայն B2C օգտատերերի համար
 export const registerB2CUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { firstName, lastName, email, password } = req.body;
 
     // Ստուգում ենք՝ արդյոք օգտատերը արդեն գրանցված է
     const existingUser = await User.findOne({ email });
@@ -20,7 +21,8 @@ export const registerB2CUser = async (req, res) => {
 
     // Ստեղծում ենք նոր B2C օգտատեր (role-ը սահմանված է որպես "b2c")
     const newUser = new User({
-      name,
+      firstName,
+      lastName,
       email,
       password: hashedPassword,
       role: "b2c",
@@ -28,6 +30,48 @@ export const registerB2CUser = async (req, res) => {
 
     await newUser.save();
     res.status(201).json({ message: "User registered successfully" });
+
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const registerB2BUser = async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, phone, address, role, companyName } = req.body;
+
+    // ✅ Սահմանում ենք թույլատրելի B2B role-երը
+    const allowedRoles = ["b2b_hotel_partner", "b2b_sales_partner"];
+
+    // ✅ Ստուգում ենք՝ արդյո՞ք ընտրած role-ը թույլատրելի է
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: "Invalid role selection" });
+    }
+
+    // ✅ Ստուգում ենք՝ արդյո՞ք օգտատերը արդեն գոյություն ունի
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    // ✅ Ծածկագրում ենք գաղտնաբառը
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // ✅ Ստեղծում ենք նոր B2B օգտատեր
+    const newUser = new User({
+      firstName,
+      lastName,
+      email,
+      phone,
+      address,
+      password: hashedPassword,
+      role, // ✅ role-ը կարող է լինել միայն "b2b_hotel_partner" կամ "b2b_sales_partner"
+      companyName, // ✅ Միայն B2B օգտատերերի համար
+    });
+
+    await newUser.save();
+    res.status(201).json({ message: "B2B User registered successfully", user: { firstName, lastName, email, role, companyName } });
 
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -63,7 +107,12 @@ export const loginUser = async (req, res) => {
 // ✅ Logout - Ջնջում է httpOnly cookie-ն
 export const logoutUser = async (req, res) => {
   try {
-    res.cookie("jwt", "", { httpOnly: true, expires: new Date(0) }); // ✅ Ջնջում ենք cookie-ն
+    res.clearCookie("authToken", { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production", 
+      sameSite: "Strict" 
+    }); // ✅ Ջնջում ենք cookie-ն
+  
     res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -73,16 +122,21 @@ export const logoutUser = async (req, res) => {
 // ✅ Ստուգում է՝ արդյոք օգտատերը մուտք է գործել
 export const checkAuthStatus = async (req, res) => {
   try {
-    res.status(200).json({ message: "User authenticated", user: req.user });
+    const user = await User.findById(req.user.id).select("firstName lastName role email phone address companyName balance");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "User authenticated", user });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// ✅ Թարմացնում է օգտատիրոջ անունը կամ email-ը
+// ✅ Թարմացնում է օգտատիրոջ պրոֆիլը (First Name, Last Name, Email, Phone, Address, Company Name)
 export const updateUserProfile = async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { firstName, lastName, email, phone, address, companyName } = req.body;
 
     // Ստուգում ենք, արդյոք email-ը արդեն գոյություն ունի
     if (email) {
@@ -95,9 +149,9 @@ export const updateUserProfile = async (req, res) => {
     // Թարմացնում ենք տվյալները
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
-      { name, email },
+      { firstName, lastName, email, phone, address, companyName },
       { new: true }
-    ).select("-password"); // Գաղտնաբառը չենք վերադարձնում
+    ).select("-password");
 
     res.status(200).json({ message: "Profile updated successfully", user: updatedUser });
   } catch (error) {
@@ -140,15 +194,23 @@ export const changePassword = async (req, res) => {
   }
 };
 
-// ✅ Օգտատիրոջ պրոֆիլը ստանալու ֆունկցիա
+// ✅ Օգտատիրոջ պրոֆիլը ստանալու ֆունկցիա (Frontend-ի համար)
 export const getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id).select(
+      "firstName lastName email phone address companyName balance role createdAt avatar"
+    );
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.status(200).json(user);
+    // ✅ Վերադարձնում ենք ամբողջական URL, եթե avatar կա
+    const avatarUrl = user.avatar
+      ? `http://localhost:5000${user.avatar}`
+      : null;
+
+    res.status(200).json({ ...user.toObject(), avatar: avatarUrl });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
