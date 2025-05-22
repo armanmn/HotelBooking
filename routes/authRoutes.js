@@ -5,11 +5,13 @@ import {
   loginUser, 
   logoutUser, 
   getUserProfile, 
-  updateUserProfile, 
+  updateOwnProfile, 
   changePassword, 
-  checkAuthStatus  
+  checkAuthStatus,
+  resetPassword,
+  requestPasswordReset
 } from "../controllers/authController.js";
-import { verifyToken } from "../middlewares/authMiddleware.js";
+import { verifyToken, updateLastActive } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -26,15 +28,22 @@ router.post("/login", loginUser);
 router.post("/logout", logoutUser);
 
 // ✅ Ստուգում է՝ արդյոք օգտատերը մուտք է գործել
-router.get("/check", verifyToken, checkAuthStatus);
+router.get("/check", verifyToken, updateLastActive, checkAuthStatus);
 
 // ✅ Վերցնել օգտատիրոջ պրոֆիլը
-router.get("/profile", verifyToken, getUserProfile);
+router.get("/profile", verifyToken, updateLastActive, getUserProfile);
 
 // ✅ Թարմացնել օգտատիրոջ տվյալները
-router.patch("/profile", verifyToken, updateUserProfile);
+router.patch("/profile", verifyToken, updateOwnProfile);
 
 // ✅ Փոխել գաղտնաբառը
 router.patch("/change-password", verifyToken, changePassword);
+
+// ✅ User-ով գաղտնաբառի վերականգնում (Email-ի միջոցով)
+router.post("/reset-password", resetPassword);
+
+// ✅ Օգտատիրոջը ուղարկում ենք Reset Password Link
+router.post("/request-password-reset", requestPasswordReset);
+
 
 export default router;

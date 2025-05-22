@@ -5,8 +5,37 @@ import Booking from "../models/Booking.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { sendResetEmail } from "../utils/email.js";
+
 
 // ✅ Ստեղծում ենք ֆայլերի պահպանման config
+// const storage = multer.diskStorage({
+//   destination: function (req, file, cb) {
+//     const uploadPath = "uploads/avatars/";
+//     if (!fs.existsSync(uploadPath)) {
+//       fs.mkdirSync(uploadPath, { recursive: true });
+//     }
+//     cb(null, uploadPath);
+//   },
+//   filename: function (req, file, cb) {
+//     cb(null, `${req.user.id}${path.extname(file.originalname)}`);
+//   },
+// });
+
+// const storage = multer.diskStorage({
+//   destination: function (req, file, cb) {
+//     const uploadPath = "uploads/avatars/";
+//     if (!fs.existsSync(uploadPath)) {
+//       fs.mkdirSync(uploadPath, { recursive: true });
+//     }
+//     cb(null, uploadPath);
+//   },
+//   filename: function (req, file, cb) {
+//     const userId = req.params.id ? req.params.id : req.user.id; // ✅ Եթե admin է, օգտագործում ենք req.params.id
+//     cb(null, `${userId}${path.extname(file.originalname)}`);
+//   },
+// });
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadPath = "uploads/avatars/";
@@ -16,21 +45,36 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
-    cb(null, `${req.user.id}${path.extname(file.originalname)}`);
+    // ✅ Սահմանում ենք user ID-ով ֆայլի անուն
+    cb(null, `${req.user.id}.jpg`); 
   },
 });
 
 const upload = multer({ storage: storage });
+
+export const removeAvatar = async (req, res) => {
+  try {
+    const userId = req.user.id; // ✅ Օգտատիրոջ իրական ID-ն ենք վերցնում
+
+    const user = await User.findByIdAndUpdate(userId, { avatar: "" }, { new: true });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "Avatar removed successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
 
 // ✅ Թարմացնում է օգտատիրոջ avatar-ը (Միայն ոչ-B2C user-ների համար)
 export const updateAvatar = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
-    }
-
-    if (req.user.role === "b2c") {
-      return res.status(403).json({ message: "B2C users cannot update avatar" });
     }
 
     const avatarUrl = `/uploads/avatars/${req.file.filename}`; // ✅ Backend-ը տալիս է ճիշտ URL
@@ -47,6 +91,61 @@ export const updateAvatar = async (req, res) => {
   }
 };
 
+// export const updateAvatar = async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+//     const isAdmin = req.user.role === "admin";
+
+//     // ✅ Եթե admin է, բայց փորձում է փոխել այլ user-ի avatar-ը
+//     if (req.params.id && isAdmin) {
+//       if (!req.body.avatar) {
+//         await User.findByIdAndUpdate(req.params.id, { avatar: "" }, { new: true });
+//         return res.status(200).json({ message: "Avatar removed successfully" });
+//       } else {
+//         return res.status(400).json({ message: "Admin can only remove avatars, not upload new ones." });
+//       }
+//     }
+
+//     // ✅ User-ը (նաև admin-ը) փոխում է իր avatar-ը
+//     if (!req.file) {
+//       return res.status(400).json({ message: "No file uploaded" });
+//     }
+
+//     const avatarUrl = `/uploads/avatars/${userId}${path.extname(req.file.originalname)}`.jpg;
+//     const updatedUser = await User.findByIdAndUpdate(userId, { avatar: avatarUrl }, { new: true }).select("avatar");
+
+//     res.status(200).json({
+//       message: "Avatar updated successfully",
+//       avatar: `http://localhost:5000${updatedUser.avatar}`,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// };
+
+
+// export const adminResetPassword = async (req, res) => {
+//   try {
+//     const { userId } = req.body;
+
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
+
+//     const tempPassword = Math.random().toString(36).slice(-8); // 🔹 Ժամանակավոր գաղտնաբառ
+//     const salt = await bcrypt.genSalt(10);
+//     user.password = await bcrypt.hash(tempPassword, salt);
+//     await user.save();
+
+//     await sendResetEmail(user.email, tempPassword); // 🔹 Ուղարկում ենք նոր ժամանակավոր գաղտնաբառը
+
+//     res.status(200).json({ message: "Password reset successfully. Email sent to user." });
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// };
+
 // ✅ Վերադարձնում է բոլոր user-ներին (Admin & Office User)
 export const getAllUsers = async (req, res) => {
   try {
@@ -54,6 +153,20 @@ export const getAllUsers = async (req, res) => {
     res.status(200).json(users);
   } catch (err) {
     res.status(500).json({ message: "Something went wrong", error: err.message });
+  }
+};
+
+export const getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -208,5 +321,36 @@ export const createOfficeOrFinanceUser = async (req, res) => {
     res.status(201).json({ message: "User created successfully", user: responseUser });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+export const updateUserProfile = async (req, res) => {
+  try {
+    const { firstName, lastName, email, phone, address, companyName, role, balance, markupPercentage, loyaltyRate } = req.body;
+    const userId = req.params.id;
+
+    // ✅ Ստուգում ենք, արդյոք email-ը արդեն գոյություն ունի այլ user-ի մոտ
+    if (email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser && existingUser._id.toString() !== userId) {
+        return res.status(400).json({ message: "Email is already in use by another user." });
+      }
+    }
+
+    // ✅ Թարմացնում ենք user-ի տվյալները (Admin-ը կարող է փոփոխել role և balance)
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { firstName, lastName, email, phone, address, companyName, role, balance, markupPercentage, loyaltyRate },
+      { new: true }
+    ).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    res.status(200).json({ message: "User updated successfully", user: updatedUser });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };

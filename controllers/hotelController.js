@@ -29,7 +29,11 @@ export const updateHotel = async (req, res) => {
       return res.status(403).json({ message: "Access Denied" });
     }
 
-    const updatedHotel = await Hotel.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updatedHotel = await Hotel.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
     res.status(200).json(updatedHotel);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -56,24 +60,35 @@ export const deleteHotel = async (req, res) => {
 };
 
 // ✅ Ստանալ հյուրանոցները՝ կախված օգտատիրոջ կարգավիճակից և հյուրանոցի աղբյուրից
+// ✅ getAllHotels — հիմա աջակցում է admin, office_user, hotel_partner
 export const getAllHotels = async (req, res) => {
+  console.log("📥 Incoming hotel query:", req.query);
+  console.log("🔐 Role:", req.user?.role || "Guest");
   try {
-    let filter = { 
-      isApproved: true // ✅ Default - միայն հաստատվածները B2C օգտատերերի համար
-    };
+    let filter = {};
+    const { city } = req.query;
 
-    // ✅ Եթե օգտատերը admin կամ office_user է, տեսնում է բոլոր հյուրանոցները
-    if (req.user && (req.user.role === "admin" || req.user.role === "office_user")) {
-      filter = {}; // ✅ Ցույց է տալիս բոլոր հյուրանոցները
+    const role = req.user?.role || "guest";
+
+    if (role === "admin" || role === "office_user") {
+      filter = {};
+    } else if (role === "b2b_hotel_partner") {
+      filter = { owner: req.user.id };
+    } else {
+      filter = {
+        $or: [{ isApproved: true }, { partnerType: "external_api" }],
+      };
     }
 
-    // ✅ Եթե հյուրանոցը ստացվել է գործընկերոջ API-ից, ապա այն արդեն հաստատված է
-    filter.$or = [
-      { isApproved: true }, // ✅ Հաստատված հյուրանոցները
-      { partnerType: "external_api" } // ✅ API-ից ստացված հյուրանոցները (որոնք հաստատման կարիք չունեն)
-    ];
+    // ✅ Այս մասը թող լինի ԱՆԿԱԽ role-ից
+    if (city) {
+      filter["location.city"] = new RegExp(`^${city}$`, "i");
+    }
 
-    const hotels = await Hotel.find(filter).populate("owner", "name email");
+    const hotels = await Hotel.find(filter).populate(
+      "owner",
+      "firstName lastName email"
+    );
     res.status(200).json(hotels);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -83,7 +98,10 @@ export const getAllHotels = async (req, res) => {
 // ✅ Ստանալ կոնկրետ հյուրանոց ըստ ID-ի
 export const getHotelById = async (req, res) => {
   try {
-    const hotel = await Hotel.findById(req.params.id).populate("owner", "name email");
+    const hotel = await Hotel.findById(req.params.id).populate(
+      "owner",
+      "name email"
+    );
     if (!hotel) {
       return res.status(404).json({ message: "Hotel not found" });
     }
@@ -101,9 +119,16 @@ export const approveHotel = async (req, res) => {
       return res.status(404).json({ message: "Hotel not found" });
     }
 
-    hotel.isApproved = true;
+    // Toggle approve based on body input
+    hotel.isApproved = req.body.isApproved;
     await hotel.save();
-    res.status(200).json({ message: "Hotel approved successfully", hotel });
+
+    res.status(200).json({
+      message: `Hotel has been ${
+        req.body.isApproved ? "approved" : "suspended"
+      }`,
+      hotel,
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -112,7 +137,18 @@ export const approveHotel = async (req, res) => {
 // ✅ Ստանալ հյուրանոցները՝ ըստ որոնման պարամետրերի
 export const searchHotels = async (req, res) => {
   try {
-    const { destination, hotelName, checkIn, checkOut, adults, children, rooms, priceMin, priceMax, facilities } = req.query;
+    const {
+      destination,
+      hotelName,
+      checkIn,
+      checkOut,
+      adults,
+      children,
+      rooms,
+      priceMin,
+      priceMax,
+      facilities,
+    } = req.query;
 
     let filter = { isApproved: true }; // ✅ Default - միայն հաստատված հյուրանոցները
 
@@ -131,8 +167,8 @@ export const searchHotels = async (req, res) => {
           price: {
             ...(priceMin ? { $gte: priceMin } : {}),
             ...(priceMax ? { $lte: priceMax } : {}),
-          }
-        }
+          },
+        },
       };
     }
 
@@ -149,7 +185,7 @@ export const searchHotels = async (req, res) => {
       filter.rooms = {
         $elemMatch: {
           availability: { $gte: rooms }, // ✅ Ստուգում ենք, որ հասանելի սենյակ լինի
-        }
+        },
       };
     }
 
@@ -158,5 +194,20 @@ export const searchHotels = async (req, res) => {
     res.status(200).json(hotels);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const getAvailableCities = async (req, res) => {
+  try {
+    const cities = await Hotel.distinct("location.city", {
+      isVisible: true,
+      isApproved: true,
+    });
+    const lowercased = cities.map((c) => c.toLowerCase());
+    res.json(lowercased);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Failed to fetch cities", error: error.message });
   }
 };

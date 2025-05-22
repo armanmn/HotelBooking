@@ -15,7 +15,10 @@ import {
   deleteUser,
   updateBalance,
   updateAvatar,
-  createOfficeOrFinanceUser
+  removeAvatar,
+  createOfficeOrFinanceUser,
+  getUserById,
+  updateUserProfile
 } from "../controllers/userController.js";
 
 import { verifyRole } from "../middlewares/roleMiddleware.js";
@@ -26,7 +29,9 @@ const upload = multer({ dest: "uploads/avatars/" });
 const router = express.Router();
 
 // ✅ Ստանալ բոլոր user-ներին (Admin & Office User)
-router.get("/", verifyToken, verifyRole(["admin", "office_user"]), getAllUsers);
+router.get("/", verifyToken, verifyRole(["admin", "office_user", "finance_user"]), getAllUsers);
+
+router.get("/:id", verifyToken, verifyAdmin, getUserById);
 
 // ✅ Ստեղծել Office User կամ Finance User (Միայն Admin)
 router.post("/admin/create-user", verifyToken, verifyAdmin, createOfficeOrFinanceUser);
@@ -49,10 +54,20 @@ router.patch("/b2c/markup", verifyToken, verifyAdmin, updateB2CMarkup);
 // // ✅ Թարմացնել avatar (Միայն B2B, Office, Finance, Admin)
 // router.patch("/update-avatar", verifyToken, updateAvatar);
 
-// ✅ Թարմացնել avatar (Միայն B2B, Office, Finance, Admin)
+// ✅ User-ը (նաև admin-ը) փոխում է իր avatar-ը (ֆայլ upload է արվում)
 router.patch("/update-avatar", verifyToken, upload.single("avatar"), updateAvatar);
+
+// ✅ Admin-ը update է անում այլ user-ի avatar (ֆայլ upload է արվում)
+router.patch("/:id/update-avatar", verifyToken, verifyAdmin, upload.single("avatar"), updateAvatar);
+
+// ✅ ՆՈՐ route – Ջնջում է avatar-ը (ՈՉ մի ֆայլ չի պահանջում)
+router.patch("/remove-avatar", verifyToken, removeAvatar);
+
+// ✅ Admin-ը թարմացնում է user-ի մյուս տվյալները։
+router.patch("/:id", verifyToken, verifyAdmin, updateUserProfile);
 
 // ✅ Ջնջել user (Միայն Admin)
 router.delete("/:id", verifyToken, verifyAdmin, deleteUser);
+
 
 export default router;

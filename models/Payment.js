@@ -31,9 +31,9 @@ const PaymentSchema = new mongoose.Schema(
       required: true 
     }, // ✅ Պահպանում ենք AMD-ով փոխարկված գումարը
     
-    paymentMethod: { 
+    paymentMethod: {
       type: String, 
-      enum: ["credit_card", "paypal", "bank_transfer", "cash"], // ✅ Ավելացվել է "cash" տարբերակը
+      enum: ["credit_card", "bank_transfer", "balance", "pay_later"],
       required: true 
     },
     transactionId: { 

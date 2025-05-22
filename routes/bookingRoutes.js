@@ -5,6 +5,7 @@ import {
   getUserBookings,
   getBookingById,
   cancelBooking,
+  markBookingAsPaid,
 } from "../controllers/bookingController.js";
 
 const router = express.Router();
@@ -20,5 +21,7 @@ router.get("/:id", verifyToken, getBookingById);
 
 // 🔹 Չեղարկել ամրագրումը
 router.put("/:id/cancel", verifyToken, cancelBooking);
+
+router.patch("/:id/pay", verifyToken, markBookingAsPaid);
 
 export default router;

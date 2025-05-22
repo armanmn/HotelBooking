@@ -2,6 +2,10 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
+import nodemailer from "nodemailer";
+import { sendResetEmail } from "../utils/email.js";
+
+
 
 
 // ✅ Գրանցում - Միայն B2C օգտատերերի համար
@@ -81,28 +85,31 @@ export const registerB2BUser = async (req, res) => {
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log("🛠️ Debug: Login attempt for", email); // ✅ Debugging log
 
     const user = await User.findOne({ email });
     if (!user) {
+      console.log("🚨 No user found with this email:", email);
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      console.log("🚨 Password does not match for", email);
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // ✅ Օգտագործում ենք մեր `generateToken` ֆունկցիան
+    console.log("✅ Login successful for", email);
     generateToken(res, user._id, user.role);
 
-    // ✅ Հեռացնում ենք գաղտնաբառը պատասխանից
     const { password: _, ...userData } = user._doc;
-
     res.status(200).json({ message: "Login successful", user: userData });
   } catch (error) {
+    console.error("🚨 Server error during login:", error.message);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 // ✅ Logout - Ջնջում է httpOnly cookie-ն
 export const logoutUser = async (req, res) => {
@@ -119,10 +126,48 @@ export const logoutUser = async (req, res) => {
   }
 };
 
+export const requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    await sendResetEmail(user.email, token); // ✅ Ուղարկում ենք Reset Link-ը
+
+    res.status(200).json({ message: "Password reset link sent successfully." });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "Invalid token" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successfully." });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 // ✅ Ստուգում է՝ արդյոք օգտատերը մուտք է գործել
 export const checkAuthStatus = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("firstName lastName role email phone address companyName balance");
+    const user = await User.findById(req.user.id).select("firstName lastName role email phone address companyName balance avatar lastActiveAt loyaltyRate");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -134,24 +179,28 @@ export const checkAuthStatus = async (req, res) => {
 };
 
 // ✅ Թարմացնում է օգտատիրոջ պրոֆիլը (First Name, Last Name, Email, Phone, Address, Company Name)
-export const updateUserProfile = async (req, res) => {
+export const updateOwnProfile = async (req, res) => {
   try {
     const { firstName, lastName, email, phone, address, companyName } = req.body;
 
-    // Ստուգում ենք, արդյոք email-ը արդեն գոյություն ունի
+    // ✅ Ստուգում ենք, արդյոք email-ը արդեն գոյություն ունի
     if (email) {
       const existingUser = await User.findOne({ email });
       if (existingUser && existingUser._id.toString() !== req.user.id) {
-        return res.status(400).json({ message: "Email already in use" });
+        return res.status(400).json({ message: "Email is already in use." });
       }
     }
 
-    // Թարմացնում ենք տվյալները
+    // ✅ Թարմացնում ենք տվյալները
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
       { firstName, lastName, email, phone, address, companyName },
       { new: true }
     ).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found." });
+    }
 
     res.status(200).json({ message: "Profile updated successfully", user: updatedUser });
   } catch (error) {
@@ -194,11 +243,13 @@ export const changePassword = async (req, res) => {
   }
 };
 
+
+
 // ✅ Օգտատիրոջ պրոֆիլը ստանալու ֆունկցիա (Frontend-ի համար)
 export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
-      "firstName lastName email phone address companyName balance role createdAt avatar"
+      "firstName lastName email phone address companyName balance role createdAt lastActiveAt avatar"
     );
 
     if (!user) {

@@ -10,6 +10,7 @@ const UserSchema = new mongoose.Schema(
     phone: { type: String, required: false },
     address: { type: String, required: false },
     companyName: { type: String, required: false },
+    lastActiveAt: { type: Date, default: null }, // ✅ Վերջին ակտիվության ժամկետ
     role: {
       type: String,
       enum: ["b2c", "b2b_hotel_partner", "b2b_sales_partner", "office_user", "finance_user", "admin"],
@@ -18,6 +19,14 @@ const UserSchema = new mongoose.Schema(
     hotelPartnerId: { type: mongoose.Schema.Types.ObjectId, ref: "HotelPartner", default: null }, // ✅ Միայն Hotel Partners-ի համար
     markupPercentage: { type: Number, default: 0 }, // ✅ Sales Partners-ի համար
     balance: { type: Number, default: 0 }, // ✅ Sales Partners-ի հաշվի մնացորդ
+    loyaltyBalance: {
+      type: Number,
+      default: 0,
+    },
+    loyaltyRate: {
+      type: Number,
+      default: 0, // B2C օգտատերերի համար կգա settings-ից
+    },
   },
   { timestamps: true }
 );

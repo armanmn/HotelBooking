@@ -7,13 +7,16 @@ import {
   getHotelById,
   getAllHotels,
   searchHotels,
-  approveHotel
+  approveHotel,
+  getAvailableCities
 } from "../controllers/hotelController.js";
 
 const router = express.Router();
 
 // ✅ Ավելացնում ենք որոնման API-ն
 router.get("/search", searchHotels);
+
+router.get("/locations", getAvailableCities);
 
 // ✅ Ստեղծել նոր հյուրանոց (Միայն B2B Hotel Partner կամ Admin)
 router.post("/", verifyToken, verifyHotelPartner, createHotel);
@@ -25,7 +28,7 @@ router.put("/:id", verifyToken, verifyHotelPartner, updateHotel);
 router.delete("/:id", verifyToken, verifyHotelPartner, deleteHotel);
 
 // ✅ Ստանալ բոլոր հյուրանոցները (B2C, B2B, Office User)
-router.get("/", getAllHotels);
+router.get("/", verifyToken, getAllHotels);
 
 // ✅ Ստանալ կոնկրետ հյուրանոց ըստ ID-ի
 router.get("/:id", getHotelById);
