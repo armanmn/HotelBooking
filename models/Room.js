@@ -18,6 +18,18 @@ const RoomSchema = new mongoose.Schema(
       enum: ["active", "inactive", "unavailable"],
       default: "active"
     },
+    mealPlan: {
+      type: String,
+      enum: [
+        "room_only",
+        "breakfast",
+        "half_board",
+        "full_board",
+        "all_inclusive",
+        "ultra_all_inclusive"
+      ],
+      default: "room_only"
+    },
 
     // ✅ Availability per date (for Channel Managers or calendar-based control)
     roomInventory: [

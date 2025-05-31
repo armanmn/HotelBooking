@@ -85,10 +85,17 @@ export const getAllHotels = async (req, res) => {
       filter["location.city"] = new RegExp(`^${city}$`, "i");
     }
 
-    const hotels = await Hotel.find(filter).populate(
-      "owner",
-      "firstName lastName email"
-    );
+    // const hotels = await Hotel.find(filter).populate(
+    //   "owner",
+    //   "firstName lastName email"
+    // );
+    const hotels = await Hotel.find(filter)
+      .populate("owner", "firstName lastName email")
+      .populate({
+        path: "rooms",
+        select: "price type maxOccupancy amenities",
+      });
+
     res.status(200).json(hotels);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
