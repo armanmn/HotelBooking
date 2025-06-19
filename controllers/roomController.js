@@ -5,6 +5,10 @@ import Hotel from "../models/Hotel.js";
 // ✅ Ստեղծել նոր սենյակ
 export const createRoom = async (req, res) => {
   try {
+    console.log("📥 Incoming room creation:");
+    console.log("➡️ Body:", req.body);
+    console.log("➡️ User:", req.user);
+
     const { hotelId } = req.params;
     const hotel = await Hotel.findById(hotelId);
 
@@ -26,6 +30,7 @@ export const createRoom = async (req, res) => {
 
     res.status(201).json(savedRoom);
   } catch (error) {
+    console.error("❌ Error in createRoom:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -151,5 +156,14 @@ export const getPublicRoomById = async (req, res) => {
   } catch (error) {
     console.error("❌ Public room fetch error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const getRoomTypes = async (req, res) => {
+  try {
+    const types = await Room.distinct("type");
+    res.status(200).json(types);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch room types" });
   }
 };

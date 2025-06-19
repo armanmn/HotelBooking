@@ -5,8 +5,9 @@ export const createHotel = async (req, res) => {
   try {
     const newHotel = new Hotel({
       ...req.body,
+      roomStock: req.body.roomStock || [], // ✅ Ապահով ենք, եթե չկա
       owner: req.user.id,
-      isApproved: false, // ✅ Նախնական հաստատված չէ
+      isApproved: false,
     });
 
     const savedHotel = await newHotel.save();
@@ -16,6 +17,7 @@ export const createHotel = async (req, res) => {
   }
 };
 
+
 // ✅ Թարմացնել հյուրանոցի տվյալները
 export const updateHotel = async (req, res) => {
   try {
@@ -24,16 +26,23 @@ export const updateHotel = async (req, res) => {
       return res.status(404).json({ message: "Hotel not found" });
     }
 
-    // ✅ Ստուգում է, արդյոք օգտատերը հյուրանոցի սեփականատերն է
     if (hotel.owner.toString() !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({ message: "Access Denied" });
     }
 
+    const updatedFields = { ...req.body };
+
+    // ✅ roomStock-ը կարող ենք փոխարինել ամբողջությամբ (ինվենտարիզացիայի դեպքում)
+    if (req.body.roomStock) {
+      updatedFields.roomStock = req.body.roomStock;
+    }
+
     const updatedHotel = await Hotel.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updatedFields,
       { new: true }
     );
+
     res.status(200).json(updatedHotel);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -216,5 +225,20 @@ export const getAvailableCities = async (req, res) => {
     res
       .status(500)
       .json({ message: "Failed to fetch cities", error: error.message });
+  }
+};
+
+export const getMyHotels = async (req, res) => {
+  try {
+    const { id, role } = req.user;
+
+    if (role !== "b2b_hotel_partner") {
+      return res.status(403).json({ message: "Only hotel partners can access their hotels." });
+    }
+
+    const hotels = await Hotel.find({ owner: id });
+    res.status(200).json(hotels);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };

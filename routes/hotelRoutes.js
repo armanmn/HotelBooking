@@ -8,7 +8,8 @@ import {
   getAllHotels,
   searchHotels,
   approveHotel,
-  getAvailableCities
+  getAvailableCities,
+  getMyHotels
 } from "../controllers/hotelController.js";
 
 const router = express.Router();
@@ -30,10 +31,15 @@ router.delete("/:id", verifyToken, verifyHotelPartner, deleteHotel);
 // ✅ Ստանալ բոլոր հյուրանոցները (B2C, B2B, Office User)
 router.get("/", verifyToken, getAllHotels);
 
+// ✅ Ստանալ օգտատիրոջ հյուրանոցները (համոզվենք, որ սա դրած է /:id-ից առաջ)
+router.get("/my", verifyToken, getMyHotels);
+
 // ✅ Ստանալ կոնկրետ հյուրանոց ըստ ID-ի
 router.get("/:id", getHotelById);
 
 // ✅ Ադմին կարող է հաստատել հյուրանոցը
 router.patch("/:id/approve", verifyToken, verifyAdmin, approveHotel);
+
+
 
 export default router;

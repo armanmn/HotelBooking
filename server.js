@@ -14,6 +14,8 @@ import "./config/dotenv.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import { fileURLToPath } from "url";
 import path from "path";
+import uploadRoutes from "./routes/uploadRoutes.js";
+import constantsRoutes from "./routes/constantsRoutes.js";
 
 // Սերվերի ստեղծում
 const app = express();
@@ -21,6 +23,11 @@ const app = express();
 // ✅ Ստեղծում ենք __dirname (ES Module-ի ճիշտ տարբերակ)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Cloudinary Configuration
+app.use("/api/upload", uploadRoutes);
+
+app.use("/api/v1/constants", constantsRoutes);
 
 app.use(cookieParser()); // Cookies-ի կառավարում
 app.use(express.json()); // JSON տվյալների համար

@@ -6,7 +6,8 @@ import {
   deleteRoom,
   getRoomsByHotel,
   getRoomById,
-  getPublicRoomById
+  getPublicRoomById,
+  getRoomTypes
 } from "../controllers/roomController.js";
 
 const router = express.Router();
@@ -22,6 +23,9 @@ router.delete("/:roomId", verifyToken, verifyHotelPartner, deleteRoom);
 
 // ✅ Ստանալ հյուրանոցի բոլոր սենյակները
 router.get("/hotel/:hotelId", getRoomsByHotel);
+
+// ✅ Ստանալ սենյակի տեսակները
+router.get("/types", getRoomTypes);
 
 // ✅ Ստանալ կոնկրետ սենյակ ըստ ID-ի
 router.get("/:roomId", verifyToken, getRoomById);       // 🔒 Protected B2B
