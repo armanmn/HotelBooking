@@ -8,18 +8,29 @@ const BookingSchema = new mongoose.Schema(
       required: true,
     },
 
-    room: {
+    offer: {
       type: new mongoose.Schema(
         {
-          roomId: { type: mongoose.Schema.Types.ObjectId, ref: "Room" },
-          type: String,
-          description: String,
-          price: Number,
-          maxOccupancy: Number,
-          amenities: [String],
+          offerId: { type: mongoose.Schema.Types.ObjectId, ref: "Offer" },
+          title: String,
+          board: String,
+          cancellationPolicy: String,
+          rateToken: String, // եթե օգտագործվում է provider-ի կողմից
+          provider: String, // "goglobal", "direct", ...
+          price: {
+            amount: Number,
+            currency: String,
+            originalAmount: Number,
+            originalCurrency: String,
+            discount: {
+              amount: Number,
+              description: String,
+            },
+          },
         },
         { _id: false }
       ),
+      required: true,
     },
 
     hotel: {
@@ -33,9 +44,11 @@ const BookingSchema = new mongoose.Schema(
             address: String,
           },
           image: String,
+          externalId: String, // Optional, useful for GoGlobal
         },
         { _id: false }
       ),
+      required: true,
     },
 
     guest: {

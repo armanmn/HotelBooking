@@ -1,5 +1,4 @@
 import Hotel from "../models/Hotel.js";
-import Room from "../models/Room.js";
 import Booking from "../models/Booking.js";
 import User from "../models/User.js";
 
@@ -49,48 +48,13 @@ export const getMyHotels = async (req, res) => {
 };
 
 /**
- * 📌 Սենյակների կառավարում (B2B Partner - Hotel Owner)
- */
-
-// ✅ Սենյակի ստեղծում
-export const createRoom = async (req, res) => {
-  try {
-    const newRoom = new Room({ ...req.body, hotel: req.params.hotelId });
-    const savedRoom = await newRoom.save();
-    res.status(201).json(savedRoom);
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-};
-
-// ✅ Սենյակի թարմացում
-export const updateRoom = async (req, res) => {
-  try {
-    const updatedRoom = await Room.findByIdAndUpdate(req.params.roomId, req.body, { new: true });
-    res.status(200).json(updatedRoom);
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-};
-
-// ✅ Սենյակի հեռացում
-export const deleteRoom = async (req, res) => {
-  try {
-    await Room.findByIdAndDelete(req.params.roomId);
-    res.status(200).json({ message: "Room deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-};
-
-/**
  * 📌 B2B Վաճառքի գործընկերներ (Sales Partners) - Booking կառավարում
  */
 
 // ✅ Վաճառքի գործընկերոջ ամրագրում (Booking)
 export const createB2BBooking = async (req, res) => {
   try {
-    const { hotelId, roomId, checkIn, checkOut, guests, totalPrice } = req.body;
+    const { hotelId, checkIn, checkOut, guests, totalPrice } = req.body;
 
     // Ստուգում, արդյոք հյուրանոցը գոյություն ունի
     const hotel = await Hotel.findById(hotelId);
@@ -102,7 +66,6 @@ export const createB2BBooking = async (req, res) => {
     const newBooking = new Booking({
       user: req.user.id, // Sales Partner-ի ID
       hotel: hotelId,
-      room: roomId,
       checkIn,
       checkOut,
       guests,
@@ -122,7 +85,7 @@ export const createB2BBooking = async (req, res) => {
 // ✅ Վաճառքի գործընկերոջ ամրագրումների ցուցակ
 export const getB2BBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({ user: req.user.id }).populate("hotel").populate("room");
+    const bookings = await Booking.find({ user: req.user.id }).populate("hotel");
     res.status(200).json(bookings);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -132,7 +95,7 @@ export const getB2BBookings = async (req, res) => {
 // ✅ Վաճառքի գործընկերոջ կոնկրետ ամրագրում
 export const getB2BBooking = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id).populate("hotel").populate("room");
+    const booking = await Booking.findById(req.params.id).populate("hotel");
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }

@@ -1,12 +1,11 @@
-import cloudinary from "../config/cloudinary.js";
-import fs from "fs";
+// uploadController.js
 
-export const uploadRoomImage = async (req, res) => {
+export const uploadOfferImage = async (req, res) => {
   try {
     const filePath = req.file.path;
 
     const result = await cloudinary.uploader.upload(filePath, {
-      folder: "rooms",
+      folder: "offers",
     });
 
     fs.unlinkSync(filePath); // delete temp file

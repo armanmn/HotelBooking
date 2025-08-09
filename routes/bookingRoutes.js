@@ -10,18 +10,19 @@ import {
 
 const router = express.Router();
 
-// 🔹 Ստեղծել ամրագրում (B2C & B2B)
+// ✅ Ստեղծել նոր ամրագրում
 router.post("/", verifyToken, createBooking);
 
-// 🔹 Ստանալ օգտագործողի բոլոր ամրագրումները
+// ✅ Ստանալ բոլոր ամրագրումները տվյալ օգտատիրոջ համար
 router.get("/", verifyToken, getUserBookings);
 
-// 🔹 Ստանալ կոնկրետ ամրագրում ըստ ID-ի
+// ✅ Ստանալ կոնկրետ ամրագրում ըստ ID-ի
 router.get("/:id", verifyToken, getBookingById);
 
-// 🔹 Չեղարկել ամրագրումը
+// ✅ Չեղարկել ամրագրում
 router.put("/:id/cancel", verifyToken, cancelBooking);
 
+// ✅ Նշել որպես վճարված
 router.patch("/:id/pay", verifyToken, markBookingAsPaid);
 
 export default router;

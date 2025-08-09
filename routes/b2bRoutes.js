@@ -5,9 +5,6 @@ import {
   updateHotel,
   deleteHotel,
   getMyHotels,
-  createRoom,
-  updateRoom,
-  deleteRoom,
   getAvailableHotels, // Վաճառքի համար հյուրանոցների ցուցակ
   createB2BBooking, // Վաճառքի գործարքի ստեղծում
 } from "../controllers/b2bController.js";
@@ -19,11 +16,6 @@ router.post("/hotels", verifyToken, verifyHotelPartner, createHotel);
 router.put("/hotels/:id", verifyToken, verifyHotelPartner, updateHotel);
 router.delete("/hotels/:id", verifyToken, verifyHotelPartner, deleteHotel);
 router.get("/hotels", verifyToken, verifyHotelPartner, getMyHotels);
-
-// 🛏️ Սենյակների կառավարում (B2B Partner - Hotel Owner)
-router.post("/hotels/:hotelId/rooms", verifyToken, verifyHotelPartner, createRoom);
-router.put("/hotels/:hotelId/rooms/:roomId", verifyToken, verifyHotelPartner, updateRoom);
-router.delete("/hotels/:hotelId/rooms/:roomId", verifyToken, verifyHotelPartner, deleteRoom);
 
 // 📌 **B2B Sales Partner (Resellers) API-ներ**
 // ✅ Վերավաճառող գործընկերները կարող են տեսնել հյուրանոցների տվյալները

@@ -1,20 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-// ✅ Վավերացնում է JWT-ն (պահված է httpOnly cookie-ի մեջ, ոչ թե Headers-ում)
-// const verifyToken = (req, res, next) => {
-//   console.log("Received Cookies:", req.cookies); // ✅ Ստուգում ենք cookie-ն
-//   const token = req.cookies.authToken; // 🔹 Հիմա վերցնում ենք cookie-ից
-//   if (!token) return res.status(401).json({ message: "Access Denied" });
-
-//   try {
-//     const verified = jwt.verify(token, process.env.JWT_SECRET);
-//     req.user = verified;
-//     next();
-//   } catch (err) {
-//     res.status(400).json({ message: "Invalid Token" });
-//   }
-// };
 
 const verifyToken = (req, res, next) => {
 
@@ -39,43 +25,6 @@ const verifyToken = (req, res, next) => {
     res.status(401).json({ message: "Invalid token" });
   }
 };
-
-// const verifyToken = (req, res, next) => {
-//   const token = req.cookies?.token;
-
-//   if (!token) {
-//     return res.status(401).json({ message: "No token, authorization denied" });
-//   }
-
-//   try {
-//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-//     req.user = decoded; // ✅ սա ներառում է user._id և role
-//     next();
-//   } catch (error) {
-//     res.status(401).json({ message: "Token is not valid" });
-//   }
-// };
-
-// const verifyToken = (req, res, next) => {
-//   // ✅ Ստուգում ենք թե՛ cookie-ով, թե՛ Authorization header-ով
-//   const token =
-//     req.cookies?.token ||
-//     (req.headers.authorization?.startsWith("Bearer ")
-//       ? req.headers.authorization.split(" ")[1]
-//       : null);
-
-//   if (!token) {
-//     return res.status(401).json({ message: "No token, authorization denied" });
-//   }
-
-//   try {
-//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-//     req.user = decoded; // ✅ այստեղ կա _id և role
-//     next();
-//   } catch (error) {
-//     return res.status(401).json({ message: "Token is not valid" });
-//   }
-// };
 
 // ✅ Վավերացնում է, որ օգտատերը Admin է
 const verifyAdmin = (req, res, next) => {

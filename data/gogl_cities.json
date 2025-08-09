@@ -1,0 +1,12 @@
+[
+  { "CityId": "563", "CityName": "Dubai", "Country": "United Arab Emirates" },
+  { "CityId": "2639", "CityName": "Yerevan", "Country": "Armenia" },
+  { "CityId": "3719", "CityName": "Tbilisi", "Country": "Georgia" },
+  { "CityId": "2073", "CityName": "Vienna", "Country": "Austria" },
+  { "CityId": "1459", "CityName": "Paris", "Country": "France" },
+  { "CityId": "7333", "CityName": "Barcelona", "Country": "Spain" },
+  { "CityId": "1661", "CityName": "Rome", "Country": "Italy" },
+  { "CityId": "1133", "CityName": "London", "Country": "United Kingdom" },
+  { "CityId": "802", "CityName": "CRETE - ALL LOCATIONS", "Country": "Greece" },
+  { "CityId": "16288", "CityName": "Batumi", "Country": "Georgia" }
+]

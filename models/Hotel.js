@@ -1,22 +1,13 @@
 import mongoose from "mongoose";
 
-const RoomStockSchema = new mongoose.Schema(
-  {
-    type: { type: String, required: true }, // օրինակ՝ "Standard Double"
-    view: {
-      type: String,
-      enum: ["city", "garden", "sea", "mountain", "pool", "other"],
-      required: true,
-    },
-    quantity: { type: Number, default: 0 }, // Քանակ ըստ սենյակ+view
-  },
-  { _id: false }
-);
-
 const HotelSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    description: { type: String },
+    description: {
+      en: { type: String },
+      hy: { type: String },
+      ru: { type: String },
+    },
     location: {
       country: { type: String, required: true },
       city: { type: String, required: true },
@@ -26,13 +17,21 @@ const HotelSchema = new mongoose.Schema(
         lng: { type: Number, required: true },
       },
     },
-    images: [{ type: String }],
+    thumbnail: { type: String },
+    images: [
+      {
+        url: { type: String, required: true },
+        isMain: { type: Boolean, default: false },
+      },
+    ],
+    stars: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 3,
+    },
     facilities: [{ type: String }],
     popularFilters: [{ type: String }],
-    rooms: [{ type: mongoose.Schema.Types.ObjectId, ref: "Room" }],
-
-    // ✅ Նոր դաշտ՝ ինվենտարիզացիայի համար
-    roomStock: [RoomStockSchema], // ✅ Ըստ սենյակի տեսակի և view-ի քանակ
 
     owner: {
       type: mongoose.Schema.Types.ObjectId,
@@ -44,21 +43,35 @@ const HotelSchema = new mongoose.Schema(
       enum: ["direct", "external_api"],
       default: "direct",
     },
+
+    // External source details (multi-supplier support)
     externalSource: {
-      provider: { type: String, default: null },
-      hotelId: { type: String, default: null },
-      dataSyncStatus: {
+      provider: {
         type: String,
-        enum: ["synced", "pending", "failed"],
-        default: "pending",
+        enum: ["inlobby", "goglobal", "hotelbeds", "stuba"],
+        required: true,
       },
-      lastSyncedAt: { type: Date },
+      providerHotelId: { type: String }, // HotelCode in GoGlobal, code in HotelBeds
+      cityId: { type: String }, // GoGlobal cityId / HotelBeds destination code
+      destinationCode: { type: String }, // For HotelBeds or similar APIs
+      lastSyncedAt: Date,
     },
+
+    // Hotel meta
     isApproved: { type: Boolean, default: false },
-    requiredNationality: { type: Boolean, default: false },
     isVisible: { type: Boolean, default: true },
     rating: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },
+    externalRating: {
+      score: { type: Number, min: 0, max: 10 },
+    },
+
+    // Optimization: minimum price for hotel (cheapest offer)
+    minPrice: {
+      amount: { type: Number, default: 0 },
+      currency: { type: String, default: "USD" },
+      lastUpdated: { type: Date },
+    },
   },
   { timestamps: true }
 );

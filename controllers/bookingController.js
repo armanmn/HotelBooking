@@ -1,101 +1,7 @@
 import Booking from "../models/Booking.js";
 import Hotel from "../models/Hotel.js";
-import Room from "../models/Room.js";
+import Offer from "../models/Offer.js";
 import { grantLoyaltyBonus } from "../utils/grantLoyaltyBonus.js";
-
-/**
- * 📌 Ստեղծել նոր ամրագրում (with full guest, hotel, room data)
- */
-// export const createBooking = async (req, res) => {
-//   if (!req.user || !req.user.id) {
-//     return res.status(401).json({ message: "Unauthorized" });
-//   }
-
-//   try {
-//     const {
-//       hotel,
-//       room,
-//       guest,
-//       checkInDate,
-//       checkOutDate,
-//       nights,
-//       totalPrice,
-//       paymentMethod,
-//     } = req.body;
-
-//     const userId = req.user.id;
-
-//     // ✅ Fetch full hotel & room data for snapshot
-//     const hotelData = await Hotel.findById(hotel);
-//     const roomData = await Room.findById(room);
-
-//     if (!hotelData || !roomData) {
-//       return res.status(404).json({ message: "Hotel or Room not found" });
-//     }
-
-//     // Վճարային կարգավիճակ ըստ մեթոդի
-//     let paymentStatus = "not_paid";
-//     if (paymentMethod === "credit_card" || paymentMethod === "balance") {
-//       paymentStatus = "paid_pending_verification";
-//     }
-
-//     const orderStatus =
-//       paymentStatus === "not_paid"
-//         ? "awaiting_payment"
-//         : "awaiting_confirmation";
-
-//     const newBooking = new Booking({
-//       user: userId,
-//       hotel: {
-//         hotelId: hotelData._id,
-//         name: hotelData.name,
-//         location: {
-//           country: hotelData.location.country,
-//           city: hotelData.location.city,
-//           address: hotelData.location.address,
-//         },
-//         image: hotelData.images?.[0] || "",
-//       },
-//       room: {
-//         roomId: roomData._id,
-//         type: roomData.type,
-//         description: roomData.description,
-//         price: roomData.price,
-//         maxOccupancy: roomData.maxOccupancy,
-//         amenities: roomData.amenities || [],
-//       },
-//       guest,
-//       checkInDate,
-//       checkOutDate,
-//       nights,
-//       totalPrice,
-//       paymentMethod,
-//       paymentStatus,
-//       bookingStatus: "waiting_approval",
-//       orderStatus,
-//     });
-
-//     console.log("📥 Booking Payload:", {
-//       hotel,
-//       room,
-//       guest,
-//       checkInDate,
-//       checkOutDate,
-//       nights,
-//       totalPrice,
-//       paymentMethod,
-//     });
-//     await newBooking.save();
-
-//     res.status(201).json({
-//       message: "Booking created successfully",
-//       bookingId: newBooking._id,
-//     });
-//   } catch (error) {
-//     console.error("❌ Booking creation error:", error);
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
 
 export const createBooking = async (req, res) => {
   if (!req.user || !req.user.id) {
@@ -104,8 +10,8 @@ export const createBooking = async (req, res) => {
 
   try {
     const {
+      offerId,
       hotel,
-      room,
       guest,
       checkInDate,
       checkOutDate,
@@ -117,12 +23,16 @@ export const createBooking = async (req, res) => {
     const userId = req.user.id;
 
     const hotelData = await Hotel.findById(hotel);
-    const roomData = await Room.findById(room);
-
-    if (!hotelData || !roomData) {
-      return res.status(404).json({ message: "Hotel or Room not found" });
+    if (!hotelData) {
+      return res.status(404).json({ message: "Hotel not found" });
     }
 
+    const offerData = await Offer.findById(offerId);
+    if (!offerData) {
+      return res.status(404).json({ message: "Offer not found" });
+    }
+
+    // Derive payment and order status
     let paymentStatus = "not_paid";
     if (paymentMethod === "credit_card" || paymentMethod === "balance") {
       paymentStatus = "paid_pending_verification";
@@ -135,6 +45,23 @@ export const createBooking = async (req, res) => {
 
     const newBooking = new Booking({
       user: userId,
+
+      offer: {
+        offerId: offerData._id,
+        title: offerData.title,
+        board: offerData.board,
+        cancellationPolicy: offerData.cancellationPolicy,
+        rateToken: offerData.rateDetails?.rateToken || null,
+        provider: offerData.origin?.provider || "direct",
+        price: {
+          amount: offerData.price?.amount,
+          currency: offerData.price?.currency,
+          originalAmount: offerData.price?.originalAmount,
+          originalCurrency: offerData.price?.originalCurrency,
+          discount: offerData.price?.discount || null,
+        },
+      },
+
       hotel: {
         hotelId: hotelData._id,
         name: hotelData.name,
@@ -144,15 +71,9 @@ export const createBooking = async (req, res) => {
           address: hotelData.location.address,
         },
         image: hotelData.images?.[0] || "",
+        externalId: hotelData.externalId || null,
       },
-      room: {
-        roomId: roomData._id,
-        type: roomData.type,
-        description: roomData.description,
-        price: roomData.price,
-        maxOccupancy: roomData.maxOccupancy,
-        amenities: roomData.amenities || [],
-      },
+
       guest,
       checkInDate,
       checkOutDate,
@@ -162,7 +83,6 @@ export const createBooking = async (req, res) => {
       paymentStatus,
       bookingStatus: "waiting_approval",
       orderStatus,
-      loyaltyBonus: 0, // ✅ Առայժմ 0, հետո կլրացվի
     });
 
     await newBooking.save();
@@ -177,9 +97,6 @@ export const createBooking = async (req, res) => {
   }
 };
 
-/**
- * 📌 Ստանալ օգտագործողի բոլոր ամրագրումները
- */
 export const getUserBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ user: req.user.id });
@@ -189,9 +106,6 @@ export const getUserBookings = async (req, res) => {
   }
 };
 
-/**
- * 📌 Ստանալ կոնկրետ ամրագրում ըստ ID-ի
- */
 export const getBookingById = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
@@ -204,9 +118,6 @@ export const getBookingById = async (req, res) => {
   }
 };
 
-/**
- * 📌 Չեղարկել ամրագրումը
- */
 export const cancelBooking = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
@@ -237,16 +148,17 @@ export const markBookingAsPaid = async (req, res) => {
       return res.status(400).json({ message: "Booking already marked as paid" });
     }
 
-    // ✅ Վերականգնում ենք ստատուսները
-    booking.paymentStatus = "verified"; // 🔥 վճարումը հաստատված է
-    booking.orderStatus = "awaiting_confirmation"; // 🔥 սպասում է հաստատման
+    booking.paymentStatus = "verified";
+    booking.orderStatus = "awaiting_confirmation";
 
-    await booking.save(); // պահում ենք փոփոխությունները
+    await booking.save();
 
-    // ✅ Հաշվում ենք Loyalty Bonus եթե վճարումը հաստատվել է
     await grantLoyaltyBonus(booking);
 
-    res.status(200).json({ message: "Payment marked as verified, loyalty bonus granted", booking });
+    res.status(200).json({
+      message: "Payment marked as verified, loyalty bonus granted",
+      booking,
+    });
   } catch (error) {
     console.error("❌ Error in markBookingAsPaid:", error);
     res.status(500).json({ message: "Server error", error: error.message });

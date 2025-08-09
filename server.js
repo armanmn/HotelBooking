@@ -5,7 +5,6 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import hotelRoutes from "./routes/hotelRoutes.js";
-import roomRoutes from "./routes/roomRoutes.js"
 import bookingRoutes from "./routes/bookingRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import b2bRoutes from "./routes/b2bRoutes.js";
@@ -15,7 +14,8 @@ import dashboardRoutes from "./routes/dashboardRoutes.js";
 import { fileURLToPath } from "url";
 import path from "path";
 import uploadRoutes from "./routes/uploadRoutes.js";
-import constantsRoutes from "./routes/constantsRoutes.js";
+import settingsRoutes from './routes/settingsRoutes.js';
+
 
 // Սերվերի ստեղծում
 const app = express();
@@ -26,8 +26,6 @@ const __dirname = path.dirname(__filename);
 
 // Cloudinary Configuration
 app.use("/api/upload", uploadRoutes);
-
-app.use("/api/v1/constants", constantsRoutes);
 
 app.use(cookieParser()); // Cookies-ի կառավարում
 app.use(express.json()); // JSON տվյալների համար
@@ -47,12 +45,12 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/hotels", hotelRoutes);
-app.use("/api/v1/rooms", roomRoutes);
 app.use("/api/v1/bookings", bookingRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/b2b", b2bRoutes);
 app.use("/api/v1/finance", financeRoutes); // ✅ Նոր ֆինանսական API
 app.use("/api/v1/dashboard", dashboardRoutes);
+app.use('/api/v1', settingsRoutes);
 
 
 // ✅ MongoDB-ի հետ միացում
