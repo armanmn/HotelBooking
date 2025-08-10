@@ -8,34 +8,6 @@ import fs from "fs";
 import { sendResetEmail } from "../utils/email.js";
 
 
-// ✅ Ստեղծում ենք ֆայլերի պահպանման config
-// const storage = multer.diskStorage({
-//   destination: function (req, file, cb) {
-//     const uploadPath = "uploads/avatars/";
-//     if (!fs.existsSync(uploadPath)) {
-//       fs.mkdirSync(uploadPath, { recursive: true });
-//     }
-//     cb(null, uploadPath);
-//   },
-//   filename: function (req, file, cb) {
-//     cb(null, `${req.user.id}${path.extname(file.originalname)}`);
-//   },
-// });
-
-// const storage = multer.diskStorage({
-//   destination: function (req, file, cb) {
-//     const uploadPath = "uploads/avatars/";
-//     if (!fs.existsSync(uploadPath)) {
-//       fs.mkdirSync(uploadPath, { recursive: true });
-//     }
-//     cb(null, uploadPath);
-//   },
-//   filename: function (req, file, cb) {
-//     const userId = req.params.id ? req.params.id : req.user.id; // ✅ Եթե admin է, օգտագործում ենք req.params.id
-//     cb(null, `${userId}${path.extname(file.originalname)}`);
-//   },
-// });
-
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadPath = "uploads/avatars/";
@@ -90,61 +62,6 @@ export const updateAvatar = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
-// export const updateAvatar = async (req, res) => {
-//   try {
-//     const userId = req.user.id;
-//     const isAdmin = req.user.role === "admin";
-
-//     // ✅ Եթե admin է, բայց փորձում է փոխել այլ user-ի avatar-ը
-//     if (req.params.id && isAdmin) {
-//       if (!req.body.avatar) {
-//         await User.findByIdAndUpdate(req.params.id, { avatar: "" }, { new: true });
-//         return res.status(200).json({ message: "Avatar removed successfully" });
-//       } else {
-//         return res.status(400).json({ message: "Admin can only remove avatars, not upload new ones." });
-//       }
-//     }
-
-//     // ✅ User-ը (նաև admin-ը) փոխում է իր avatar-ը
-//     if (!req.file) {
-//       return res.status(400).json({ message: "No file uploaded" });
-//     }
-
-//     const avatarUrl = `/uploads/avatars/${userId}${path.extname(req.file.originalname)}`.jpg;
-//     const updatedUser = await User.findByIdAndUpdate(userId, { avatar: avatarUrl }, { new: true }).select("avatar");
-
-//     res.status(200).json({
-//       message: "Avatar updated successfully",
-//       avatar: `http://localhost:5000${updatedUser.avatar}`,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
-
-
-// export const adminResetPassword = async (req, res) => {
-//   try {
-//     const { userId } = req.body;
-
-//     const user = await User.findById(userId);
-//     if (!user) {
-//       return res.status(404).json({ message: "User not found" });
-//     }
-
-//     const tempPassword = Math.random().toString(36).slice(-8); // 🔹 Ժամանակավոր գաղտնաբառ
-//     const salt = await bcrypt.genSalt(10);
-//     user.password = await bcrypt.hash(tempPassword, salt);
-//     await user.save();
-
-//     await sendResetEmail(user.email, tempPassword); // 🔹 Ուղարկում ենք նոր ժամանակավոր գաղտնաբառը
-
-//     res.status(200).json({ message: "Password reset successfully. Email sent to user." });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
 
 // ✅ Վերադարձնում է բոլոր user-ներին (Admin & Office User)
 export const getAllUsers = async (req, res) => {

@@ -5,9 +5,6 @@ import generateToken from "../utils/generateToken.js";
 import nodemailer from "nodemailer";
 import { sendResetEmail } from "../utils/email.js";
 
-
-
-
 // ✅ Գրանցում - Միայն B2C օգտատերերի համար
 export const registerB2CUser = async (req, res) => {
   try {
@@ -34,7 +31,6 @@ export const registerB2CUser = async (req, res) => {
 
     await newUser.save();
     res.status(201).json({ message: "User registered successfully" });
-
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -42,7 +38,16 @@ export const registerB2CUser = async (req, res) => {
 
 export const registerB2BUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, phone, address, role, companyName } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      phone,
+      address,
+      role,
+      companyName,
+    } = req.body;
 
     // ✅ Սահմանում ենք թույլատրելի B2B role-երը
     const allowedRoles = ["b2b_hotel_partner", "b2b_sales_partner"];
@@ -75,17 +80,49 @@ export const registerB2BUser = async (req, res) => {
     });
 
     await newUser.save();
-    res.status(201).json({ message: "B2B User registered successfully", user: { firstName, lastName, email, role, companyName } });
-
+    res
+      .status(201)
+      .json({
+        message: "B2B User registered successfully",
+        user: { firstName, lastName, email, role, companyName },
+      });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
+// export const loginUser = async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+//     console.log("🛠️ Debug: Login attempt for", email); // ✅ Debugging log
+
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//       console.log("🚨 No user found with this email:", email);
+//       return res.status(400).json({ message: "Invalid credentials" });
+//     }
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) {
+//       console.log("🚨 Password does not match for", email);
+//       return res.status(400).json({ message: "Invalid credentials" });
+//     }
+
+//     console.log("✅ Login successful for", email);
+//     generateToken(res, user._id, user.role);
+
+//     const { password: _, ...userData } = user._doc;
+//     res.status(200).json({ message: "Login successful", user: userData });
+//   } catch (error) {
+//     console.error("🚨 Server error during login:", error.message);
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// };
+
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log("🛠️ Debug: Login attempt for", email); // ✅ Debugging log
+    console.log("🛠️ Debug: Login attempt for", email);
 
     const user = await User.findOne({ email });
     if (!user) {
@@ -100,7 +137,10 @@ export const loginUser = async (req, res) => {
     }
 
     console.log("✅ Login successful for", email);
-    generateToken(res, user._id, user.role);
+
+    generateToken(res, user._id, user.role, {
+      markupPercentage: user.markupPercentage ?? null, // ✅ payload-ի մեջ
+    });
 
     const { password: _, ...userData } = user._doc;
     res.status(200).json({ message: "Login successful", user: userData });
@@ -110,16 +150,15 @@ export const loginUser = async (req, res) => {
   }
 };
 
-
 // ✅ Logout - Ջնջում է httpOnly cookie-ն
 export const logoutUser = async (req, res) => {
   try {
-    res.clearCookie("authToken", { 
-      httpOnly: true, 
-      secure: process.env.NODE_ENV === "production", 
-      sameSite: "Strict" 
+    res.clearCookie("authToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
     }); // ✅ Ջնջում ենք cookie-ն
-  
+
     res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -135,7 +174,9 @@ export const requestPasswordReset = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
     await sendResetEmail(user.email, token); // ✅ Ուղարկում ենք Reset Link-ը
 
     res.status(200).json({ message: "Password reset link sent successfully." });
@@ -167,7 +208,9 @@ export const resetPassword = async (req, res) => {
 // ✅ Ստուգում է՝ արդյոք օգտատերը մուտք է գործել
 export const checkAuthStatus = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("firstName lastName role email phone address companyName balance avatar lastActiveAt loyaltyRate");
+    const user = await User.findById(req.user.id).select(
+      "firstName lastName role email phone address companyName balance avatar lastActiveAt loyaltyRate"
+    );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -181,7 +224,8 @@ export const checkAuthStatus = async (req, res) => {
 // ✅ Թարմացնում է օգտատիրոջ պրոֆիլը (First Name, Last Name, Email, Phone, Address, Company Name)
 export const updateOwnProfile = async (req, res) => {
   try {
-    const { firstName, lastName, email, phone, address, companyName } = req.body;
+    const { firstName, lastName, email, phone, address, companyName } =
+      req.body;
 
     // ✅ Ստուգում ենք, արդյոք email-ը արդեն գոյություն ունի
     if (email) {
@@ -202,7 +246,9 @@ export const updateOwnProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found." });
     }
 
-    res.status(200).json({ message: "Profile updated successfully", user: updatedUser });
+    res
+      .status(200)
+      .json({ message: "Profile updated successfully", user: updatedUser });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -215,7 +261,9 @@ export const changePassword = async (req, res) => {
 
     // Ստուգում ենք, արդյոք նոր գաղտնաբառը բավարար է երկարությամբ
     if (newPassword.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 6 characters long" });
     }
 
     // Ստանում ենք օգտատիրոջ տվյալները
@@ -242,8 +290,6 @@ export const changePassword = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
-
 
 // ✅ Օգտատիրոջ պրոֆիլը ստանալու ֆունկցիա (Frontend-ի համար)
 export const getUserProfile = async (req, res) => {
