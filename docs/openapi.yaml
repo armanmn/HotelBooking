@@ -1,0 +1,760 @@
+openapi: 3.0.3
+info:
+  title: inLobby Hotel APIs
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:5000/api/v1
+
+tags:
+  - name: Suppliers/GoGlobal
+    description: Live supplier endpoints (read-only in Swagger UI)
+
+paths:
+  /suppliers/goglobal/availability:
+    get:
+      tags: [Suppliers/GoGlobal]
+      summary: Availability (GoGlobal OT=11 mirror; ResponseFormat=JSON)
+      description: >
+        Uses supplier's default/profile/destination currency (we do NOT force UI currency).
+        Backend may also compute AMD mirrors via GlobalSettings for internal sorting/filtering.
+      operationId: goglobalAvailability
+      parameters:
+        - in: query
+          name: cityId
+          required: true
+          schema: { type: string }
+          description: Internal/supplier city identifier (e.g. "563")
+        - in: query
+          name: arrivalDate
+          required: true
+          schema: { type: string, format: date }
+          description: YYYY-MM-DD (պահիր ≥30 օր ապագայում թեստավորման համար)
+        - in: query
+          name: nights
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: rooms
+          required: false
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: adults
+          required: false
+          schema: { type: integer, default: 2 }
+        - in: query
+          name: children
+          required: false
+          schema: { type: integer, default: 0 }
+        - in: query
+          name: childrenAges
+          required: false
+          schema:
+            type: string
+            description: Comma-separated ages; required when children > 0 (e.g. "5,12")
+        - in: query
+          name: nationality
+          required: false
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+          example: AM
+          description: ISO 3166-1 alpha-2 (e.g. AM, GB). Optional; if omitted, supplier default may apply.
+        - in: query
+          name: includeInfo
+          required: false
+          schema: { type: boolean, default: false }
+          description: When true, enrich top-N hotels with description/facilities/pictures from Hotel Info.
+        - in: query
+          name: infoLimit
+          required: false
+          schema: { type: integer, default: 3, minimum: 1, maximum: 10 }
+          description: How many top hotels to enrich (applies when includeInfo=true).
+        - in: query
+          name: infoLang
+          required: false
+          schema: { type: string, default: en }
+          description: Info language (supplier supports en/…).
+        - in: query
+          name: maxHotels
+          required: false
+          schema: { type: integer, default: 150 }
+        - in: query
+          name: maxOffers
+          required: false
+          schema: { type: integer, default: 5 }
+        - in: query
+          name: maximumWaitTime
+          required: false
+          schema: { type: integer, default: 15 }
+        - in: header
+          name: X-Debug-Role
+          required: false
+          schema:
+            type: string
+            enum: [guest, b2c, office_user, b2b_sales_partner]
+          description: Debug only. Overrides req.user.role for pricing/markup in this request.
+        - in: header
+          name: X-Debug-Markup
+          required: false
+          schema:
+            type: number
+            format: float
+            minimum: 0
+            maximum: 100
+          description: Debug only. Used when X-Debug-Role=b2b_sales_partner to set a custom markup %.
+      responses:
+        "200":
+          description: Normalized hotels & offers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hotels:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Hotel"
+                  searchContext:
+                    type: object
+                    properties:
+                      arrivalDate: { type: string, format: date }
+                      nights: { type: integer }
+                      rooms: { type: integer }
+                      adults: { type: integer }
+                      children: { type: integer }
+                      childrenAges:
+                        type: array
+                        items: { type: integer }
+                      currencyUsed:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    properties:
+                      provider: { type: string, example: goglobal }
+                      currencyUsed: { type: string, nullable: true }
+                      total: { type: integer }
+                      hydration:
+                        type: object
+                        properties:
+                          requestedCityId: { type: string }
+                          matchedCodes: { type: integer }
+                          matchedInDb: { type: integer }
+                      roleMarkupPct:
+                        type: number
+                        description: Office-only (debug)
+              examples:
+                sample:
+                  value:
+                    searchContext:
+                      arrivalDate: "2025-11-11"
+                      nights: 3
+                      rooms: 1
+                      adults: 2
+                      children: 0
+                      childrenAges: []
+                      currencyUsed: "USD"
+                    meta:
+                      provider: "goglobal"
+                      currencyUsed: "USD"
+                      total: 1
+                      hydration:
+                        requestedCityId: "563"
+                        matchedCodes: 1
+                        matchedInDb: 1
+                    hotels:
+                      - _id: "875154"
+                        name: "HOLIDAY INN DUBAI AL-MAKTOUM AIRPORT"
+                        stars: 4
+                        thumbnail: null
+                        images:
+                          - { url: "https://i.travelapi.com/lodging/...", isMain: true }
+                        rating: 0
+                        reviewsCount: 0
+                        externalRating: null
+                        location:
+                          city: "Dubai"
+                          country: "UNITED ARAB EMIRATES"
+                          address: "NEAR  AIRPORT"
+                          lat: null
+                          lng: null
+                        externalSource:
+                          provider: "goglobal"
+                          hotelCode: "875154"
+                          cityId: "563"
+                        minOffer:
+                          price: { amount: 551, currency: "USD" }
+                          board: "BB"
+                          refundable: true
+                          cxlDeadline: "2025-10-30"
+                          cancellation:
+                            supplier: { refundable: true, deadlineUtc: "2025-10-30T00:00:00Z" }
+                            platform: { refundable: false, cutoffUtc: "2025-10-26T00:00:00Z", bufferDays: 4, reason: "NON_REFUNDABLE_PLATFORM_BUFFER" }
+                            hoursUntilSupplierDeadline: 720
+                            refundable: false
+                            supplierDeadlineUtc: null
+                            platformCutoffUtc: "2025-10-26T00:00:00Z"
+                            safeToBook: false
+                            bufferDays: 4
+                          searchCode: "24912730/911582482037300049/114"
+                          category: 4
+                          roomName: "Standard Room"
+                          offerProof: "eyJhbGciOi..."
+                        offersPreview:
+                          - price: { amount: 551, currency: "USD" }
+                            board: "BB"
+                            refundable: true
+                            cxlDeadline: "2025-10-30"
+                            cancellation:
+                              supplier: { refundable: true, deadlineUtc: null }
+                              platform: { refundable: false, cutoffUtc: "2025-10-26T00:00:00Z", bufferDays: 4, reason: "NON_REFUNDABLE_PLATFORM_BUFFER" }
+                              hoursUntilSupplierDeadline: null
+                              refundable: false
+                              supplierDeadlineUtc: null
+                              platformCutoffUtc: "2025-10-26T00:00:00Z"
+                              safeToBook: false
+                              bufferDays: 4
+                            searchCode: "24912730/911582482037300049/114"
+                            category: 4
+                            roomName: "Standard Room"
+                            offerProof: "eyJhbGciOi..."
+                        minPrice: { amount: 595.08, currency: "USD" }
+                        hotelInfo:
+                          descriptionHtml: "<p>...</p>"
+                          facilitiesHtml: "<ul>...</ul>"
+                          roomFacilitiesHtml: "<ul>...</ul>"
+        "4XX":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missingParam:
+                  value:
+                    code: "MISSING_PARAM"
+                    message: "cityId, arrivalDate, nights are required"
+                    hint: "Provide ?cityId=...&arrivalDate=...&nights=..."
+
+  /suppliers/goglobal/hotel-availability:
+    get:
+      tags: [Suppliers/GoGlobal]
+      summary: Single-hotel availability (fast) for a given HotelId + search context
+      operationId: goglobalHotelAvailability
+      parameters:
+        - in: query
+          name: cityId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: hotelId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: arrivalDate
+          required: true
+          schema: { type: string, example: "2025-11-11" }
+        - in: query
+          name: nights
+          required: true
+          schema: { type: integer, example: 3, minimum: 1 }
+        - in: query
+          name: rooms
+          required: false
+          schema: { type: string, example: "1" }
+        - in: query
+          name: adults
+          required: false
+          schema: { type: string, example: "2" }
+        - in: query
+          name: children
+          required: false
+          schema: { type: string, example: "0" }
+        - in: query
+          name: childrenAges
+          required: false
+          schema: { type: string, example: "" }
+          description: Comma-separated ages if any
+        - in: query
+          name: filterBasis
+          required: false
+          schema: { type: string, example: "BB,HB" }
+          description: CSV of room basises (e.g. BB,HB)
+        - in: query
+          name: maximumWaitTime
+          required: false
+          schema: { type: integer, example: 15 }
+        - in: query
+          name: maxOffers
+          required: false
+          schema: { type: integer, example: 8 }
+      responses:
+        "200":
+          description: Normalized hotels & offers (single hotel expected)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hotels:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Hotel"
+                  searchContext:
+                    type: object
+                  meta:
+                    type: object
+                  remarksHtml:
+                    type: string
+                    description: Supplier remark (HTML)
+                  preferred:
+                    type: boolean
+                    description: Supplier 'Preferred' flag
+        "400":
+          description: Bad request
+        "500":
+          description: Internal error
+
+  /suppliers/goglobal/valuation:
+    get:
+      tags: [Suppliers/GoGlobal]
+      summary: Booking Valuation (GoGlobal OT=9)
+      description: >
+        Confirms price & cancellation right before booking. We do **not** force Currency;
+        supplier default is used. Response shows both *supplier* and *platform* cancellation views
+        (platform adds a safety buffer of N days).
+      operationId: goglobalValuation
+      security:
+        - XDebugRole: []
+        - XDebugMarkup: []
+        - XOfferProof: []
+      parameters:
+        - in: query
+          name: hotelSearchCode
+          required: true
+          schema:
+            type: string
+            pattern: ".+/.+"
+          example: "25197606/5494176032190393843/13613"
+          description: Copy from availability -> offers[].searchCode. NOT the hotelId/code.
+        - in: query
+          name: arrivalDate
+          required: false
+          schema: { type: string, format: date }
+          description: Optional, improves accuracy for some suppliers
+        - in: query
+          name: offerProof
+          required: false
+          schema: { type: string }
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          description: >
+            Signed token from Availability. If provided, backend can price even if supplier returns empty <Rates/>.
+            If both header and query are present, query is used.
+        - in: header
+          name: X-Offer-Proof
+          required: false
+          schema: { type: string }
+          description: Same as offerProof query parameter.
+        - in: query
+          name: originalAmount
+          required: false
+          schema: { type: number, format: float, example: 169.00 }
+          description: |
+            Supplier price amount from Availability. Not sent to supplier; used by our backend when <Rates/> is empty (office fallback).
+        - in: query
+          name: originalCurrency
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Z]{3}$'
+            example: USD
+          description: Supplier price currency from Availability (ISO 4217).
+        - in: header
+          name: X-Debug-Role
+          required: false
+          schema:
+            type: string
+            enum: [guest, b2c, office_user, b2b_sales_partner]
+          description: Debug only. Overrides req.user.role for pricing.
+        - in: header
+          name: X-Debug-Markup
+          required: false
+          schema: { type: number, minimum: 0, maximum: 100 }
+          description: Debug only. Used when X-Debug-Role=b2b_sales_partner to set a custom markup %.
+      responses:
+        "200":
+          description: Valuation with supplier/platform cancellation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valuation:
+                    $ref: '#/components/schemas/Valuation'
+                  meta:
+                    type: object
+                    properties:
+                      provider: { type: string, example: goglobal }
+                      roleMarkupPct: { type: number }
+                      safety:
+                        type: object
+                        properties:
+                          bufferDays: { type: integer, example: 4 }
+              examples:
+                sample:
+                  value:
+                    valuation:
+                      price: { amount: 303.48, currency: "EUR" }
+                      supplierPrice: { amount: 281.00, currency: "EUR" }
+                      cancellation:
+                        supplier:
+                          refundable: true
+                          deadlineUtc: "2025-09-03T20:00:00Z"
+                        platform:
+                          refundable: false
+                          cutoffUtc: "2025-08-30T20:00:00Z"
+                          bufferDays: 4
+                          reason: "NON_REFUNDABLE_PLATFORM_BUFFER"
+                        hoursUntilSupplierDeadline: 39
+                      remarks: "City tax payable at hotel."
+                      remarksAnnotatedHtml: "<p><strong>Platform policy:</strong> ...</p>"
+                    meta:
+                      provider: "goglobal"
+                      roleMarkupPct: 8
+                      safety: { bufferDays: 4 }
+        "401":
+          description: Offer proof required / invalid
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              examples:
+                required:
+                  value:
+                    code: "PROOF_REQUIRED"
+                    message: "offerProof is required. Request valuation only for an offer returned by Availability."
+                    hint: "Call Availability, take offers[i].offerProof and pass it as ?offerProof=... or X-Offer-Proof header."
+                invalid:
+                  value:
+                    code: "INVALID_OFFER_PROOF"
+                    message: "Offer proof is invalid or expired."
+        "409":
+          description: Supplier session not found (rate expired)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              examples:
+                sessionExpired:
+                  value:
+                    message: "Supplier session not found"
+                    hint: "Please refresh availability and retry valuation within the same session."
+                    code: 315
+        "424":
+          description: Supplier returned no price; use original amount/currency or stored offer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              examples:
+                noPrice:
+                  value:
+                    message: "Supplier valuation unavailable"
+                    code: "NO_PRICE"
+                    hint: "Refresh availability (and pass offerProof) and retry."
+
+    post:
+      tags: [Suppliers/GoGlobal]
+      summary: Booking Valuation (POST)
+      operationId: goglobalValuationPost
+      security:
+        - XDebugRole: []
+        - XDebugMarkup: []
+        - XOfferProof: []
+      parameters:
+        - in: header
+          name: X-Debug-Role
+          required: false
+          schema:
+            type: string
+            enum: [guest, b2c, office_user, b2b_sales_partner]
+          description: Debug only. Overrides req.user.role for pricing.
+        - in: header
+          name: X-Debug-Markup
+          required: false
+          schema: { type: number, minimum: 0, maximum: 100 }
+          description: Debug only. Used when X-Debug-Role=b2b_sales_partner to set a custom markup %.
+        - in: header
+          name: X-Offer-Proof
+          required: false
+          schema: { type: string }
+          description: Same as offerProof in request body. Body has priority over header.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hotelSearchCode]
+              properties:
+                hotelSearchCode:
+                  type: string
+                  pattern: ".+/.+"
+                  example: "25197606/5494176032190393843/13613"
+                arrivalDate: { type: string, format: date }
+                offerProof:
+                  type: string
+                  description: >
+                    Signed token from Availability. If present, originalAmount/originalCurrency are not needed.
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                originalAmount: { type: number, format: float, example: 169.00 }
+                originalCurrency:
+                  type: string
+                  pattern: '^[A-Z]{3}$'
+                  example: USD
+      responses:
+        "200":
+          $ref: '#/paths/~1suppliers~1goglobal~1valuation/get/responses/200'
+        "401":
+          $ref: '#/paths/~1suppliers~1goglobal~1valuation/get/responses/401'
+        "409":
+          $ref: '#/paths/~1suppliers~1goglobal~1valuation/get/responses/409'
+        "424":
+          $ref: '#/paths/~1suppliers~1goglobal~1valuation/get/responses/424'
+
+  /suppliers/goglobal/hotel-info:
+    get:
+      tags: [Suppliers/GoGlobal]
+      summary: Hotel Info (descriptions, facilities, pictures)
+      operationId: goglobalHotelInfo
+      parameters:
+        - in: query
+          name: hotelId
+          required: true
+          schema: { type: string }
+          description: Supplier hotel code from availability (e.g. hotels[i].externalSource.hotelCode)
+        - in: query
+          name: lang
+          required: false
+          schema: { type: string, default: en }
+          description: Info language (e.g. en)
+      responses:
+        "200":
+          description: Slim hotel info payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hotel:
+                    $ref: "#/components/schemas/HotelInfoSlim"
+                  meta:
+                    type: object
+                    properties:
+                      provider: { type: string, example: goglobal }
+
+components:
+  securitySchemes:
+    XDebugRole:
+      type: apiKey
+      in: header
+      name: X-Debug-Role
+    XDebugMarkup:
+      type: apiKey
+      in: header
+      name: X-Debug-Markup
+    XOfferProof:
+      type: apiKey
+      in: header
+      name: X-Offer-Proof
+      description: >
+        Signed token from Availability (offerProof). If present, Valuation can succeed even when supplier
+        omits <Rates/>. Body/query take precedence over this header.
+
+  schemas:
+    Money:
+      type: object
+      properties:
+        amount:
+          type: number
+        currency:
+          type: string
+          description: ISO 4217 (supplier-returned)
+          example: EUR
+
+    Image:
+      type: object
+      properties:
+        url: { type: string }
+        isMain: { type: boolean }
+
+    HotelInfoSlim:
+      type: object
+      properties:
+        hotelId: { type: string }
+        name: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        cityId: { type: string, nullable: true }
+        category: { type: integer, nullable: true }
+        descriptionHtml: { type: string, nullable: true }
+        facilitiesHtml: { type: string, nullable: true }
+        roomFacilitiesHtml: { type: string, nullable: true }
+        facilities:
+          type: array
+          items: { type: string }
+        roomFacilities:
+          type: array
+          items: { type: string }
+        checkinTime: { type: string, nullable: true }
+        checkoutTime: { type: string, nullable: true }
+        pictures:
+          type: array
+          items:
+            $ref: "#/components/schemas/Image"
+
+    OfferLite:
+      type: object
+      properties:
+        price:
+          $ref: "#/components/schemas/Money"
+        board:
+          type: string
+          example: BB
+        refundable:
+          type: boolean
+          description: Legacy flat flag (supplier)
+        cxlDeadline:
+          type: string
+          nullable: true
+          description: Supplier deadline as date string (original)
+        cancellation:
+          $ref: "#/components/schemas/CancellationV2"
+        searchCode:
+          type: string
+          description: GoGlobal rate key (copy to valuation)
+          example: "25197606/5494176032190393843/13613"
+        category:
+          type: integer
+        roomName:
+          type: string
+        offerProof:
+          type: string
+          description: Signed token (use in valuation as ?offerProof= or X-Offer-Proof)
+
+    Hotel:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Provider hotel code (string)
+        name:
+          type: string
+        stars:
+          type: integer
+        thumbnail:
+          type: string
+          nullable: true
+        images:
+          type: array
+          items: { $ref: "#/components/schemas/Image" }
+        rating:
+          type: number
+        reviewsCount:
+          type: integer
+        externalRating:
+          type: number
+          nullable: true
+        location:
+          type: object
+          properties:
+            city: { type: string, nullable: true }
+            country: { type: string, nullable: true }
+            address: { type: string, nullable: true }
+            lat: { type: number, nullable: true }
+            lng: { type: number, nullable: true }
+        externalSource:
+          type: object
+          properties:
+            provider: { type: string, example: goglobal }
+            hotelCode: { type: string }
+            cityId: { type: string }
+        minOffer:
+          $ref: "#/components/schemas/OfferLite"
+        offersPreview:
+          type: array
+          items:
+            $ref: "#/components/schemas/OfferLite"
+        minPrice:
+          $ref: "#/components/schemas/Money"
+        hotelInfo:
+          $ref: "#/components/schemas/HotelInfoSlim"
+
+    Valuation:
+      type: object
+      properties:
+        price:
+          $ref: '#/components/schemas/Money'
+        supplierPrice:
+          $ref: '#/components/schemas/Money'
+        cancellation:
+          $ref: '#/components/schemas/CancellationV2'
+        remarks:
+          type: string
+        remarksAnnotatedHtml:
+          type: string
+          description: Platform-first note (cutoff or non-refundable) prepended to supplier remarks (HTML).
+        breakdown:
+          type: object
+          properties:
+            supplierBase: { $ref: '#/components/schemas/Money' }
+            markup: { $ref: '#/components/schemas/Money' }
+            total: { $ref: '#/components/schemas/Money' }
+            supplierBaseAmd: { type: number, nullable: true }
+            markupAmd: { type: number, nullable: true }
+            totalAmd: { type: number, nullable: true }
+            exchange:
+              type: object
+              properties:
+                base: { type: string, example: AMD }
+                usedRateFor: { type: string, example: USD }
+                rate: { type: number, example: 387.5, nullable: true }
+                lastUpdatedAt: { type: string, format: date-time, nullable: true }
+            taxesAndFees:
+              type: object
+              properties:
+                payAtHotelNote: { type: string, nullable: true }
+
+    CancellationV2:
+      type: object
+      properties:
+        supplier:
+          type: object
+          properties:
+            refundable: { type: boolean, nullable: true }
+            deadlineUtc: { type: string, format: date-time, nullable: true }
+        platform:
+          type: object
+          properties:
+            refundable: { type: boolean, nullable: true }
+            cutoffUtc: { type: string, format: date-time, nullable: true }
+            bufferDays: { type: integer, nullable: true }
+            reason:
+              type: string
+              enum: [NON_REFUNDABLE_SUPPLIER, NON_REFUNDABLE_PLATFORM_BUFFER, NO_DEADLINE, null]
+              nullable: true
+        hoursUntilSupplierDeadline:
+          type: integer
+          nullable: true
+        # legacy flat fields (optional/public)
+        refundable: { type: boolean, nullable: true }
+        supplierDeadlineUtc: { type: string, format: date-time, nullable: true }
+        platformCutoffUtc: { type: string, format: date-time, nullable: true }
+        safeToBook: { type: boolean, nullable: true }
+        bufferDays: { type: integer, nullable: true }
+
+    ErrorResponse:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        hint: { type: string }
+        context: { type: object }

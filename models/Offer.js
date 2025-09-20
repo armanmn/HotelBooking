@@ -33,9 +33,16 @@ const offerSchema = new mongoose.Schema(
     availability: { type: Number, default: 0 },
 
     price: {
-      amount: { type: Number, required: true },
-      currency: { type: String, default: "USD" },
-      baseCurrency: { type: String },
+      amount: { type: Number, required: true, min: 0 },
+      currency: {
+        type: String,
+        uppercase: true,
+        required: function () {
+          return (this.price?.amount ?? 0) > 0;
+        },
+        match: /^[A-Z]{3}$/,
+      },
+      baseCurrency: { type: String, uppercase: true }, // թողնենք optional, առանց default
       originalAmount: Number,
       lastUpdated: { type: Date, default: Date.now },
     },

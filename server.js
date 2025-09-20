@@ -15,7 +15,10 @@ import { fileURLToPath } from "url";
 import path from "path";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import settingsRoutes from './routes/settingsRoutes.js';
-
+import supplierRoutes from "./routes/supplierRoutes.js";
+import metaRoutes from "./routes/meta.js";
+import { mountSwagger } from "./tools/swagger.js";
+import { startExchangeCron } from "./services/exchange/refresh.js";
 
 // Սերվերի ստեղծում
 const app = express();
@@ -26,6 +29,9 @@ const __dirname = path.dirname(__filename);
 
 // Cloudinary Configuration
 app.use("/api/upload", uploadRoutes);
+
+// Swagger UI @ /docs  (read-only, միայն GET “Try it out”)
+mountSwagger(app, __dirname);
 
 app.use(cookieParser()); // Cookies-ի կառավարում
 app.use(express.json()); // JSON տվյալների համար
@@ -51,6 +57,8 @@ app.use("/api/v1/b2b", b2bRoutes);
 app.use("/api/v1/finance", financeRoutes); // ✅ Նոր ֆինանսական API
 app.use("/api/v1/dashboard", dashboardRoutes);
 app.use('/api/v1', settingsRoutes);
+app.use("/api/v1/suppliers", supplierRoutes);
+app.use("/api/v1/meta", metaRoutes);
 
 
 // ✅ MongoDB-ի հետ միացում
@@ -70,3 +78,5 @@ app.listen(PORT, () => {
   connectDB();
   console.log(`🚀 Server running on port ${PORT}`);
 });
+
+startExchangeCron();

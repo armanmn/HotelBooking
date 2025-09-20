@@ -67,9 +67,24 @@ const HotelSchema = new mongoose.Schema(
     },
 
     // Optimization: minimum price for hotel (cheapest offer)
-    minPrice: {
-      amount: { type: Number, default: 0 },
-      currency: { type: String, default: "USD" },
+   minPrice: {
+      amount: { type: Number, default: 0, min: 0 },
+      currency: {
+        type: String,
+        uppercase: true,
+        validate: {
+          validator: function (v) {
+            // եթե գին կա, currency պարտադիր է և պետք է լինի ISO 4217՝ 3 մեծատառ
+            if (this.minPrice?.amount > 0) {
+              return /^[A-Z]{3}$/.test(v || "");
+            }
+            // եթե գին չկա (0), currency-ը չպետք է լինի (թող undefined)
+            return v == null;
+          },
+          message:
+            "minPrice.currency must be a 3-letter code when amount > 0; omit it when amount is 0.",
+        },
+      },
       lastUpdated: { type: Date },
     },
   },
