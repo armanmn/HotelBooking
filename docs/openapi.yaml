@@ -37,30 +37,81 @@ paths:
         - in: query
           name: rooms
           required: false
-          schema: { type: integer, default: 1 }
+          schema: { type: integer, default: 1, minimum: 1, maximum: 9 }
+          description: Number of rooms (max 9)
         - in: query
           name: adults
           required: false
-          schema: { type: integer, default: 2 }
+          schema: { type: string, default: "2" }
+          description: >
+            Adults per room. Accepts single value or CSV per-room, e.g. "2" or "2,2".
+            When CSV is shorter than rooms, first value is used for remaining rooms.
         - in: query
           name: children
           required: false
-          schema: { type: integer, default: 0 }
+          schema: { type: string, default: "0" }
+          description: >
+            Children count per room. Accepts single value or CSV per-room, e.g. "0" or "0,1".
         - in: query
           name: childrenAges
           required: false
-          schema:
-            type: string
-            description: Comma-separated ages; required when children > 0 (e.g. "5,12")
+          schema: { type: string }
+          description: >
+            Children ages. For a single room use "5,9". For per-room groups use pipes, e.g. "5|9,11".
+            Each room's ages list is truncated to that room's children count.
+          examples:
+            singleRoom:
+              summary: Ages for one room
+              value: "5,9"
+            perRoom:
+              summary: "First room: age 5; second room: ages 9 & 11"
+              value: "5|9,11"
         - in: query
           name: nationality
           required: false
-          schema:
-            type: string
-            minLength: 2
-            maxLength: 2
+          schema: { type: string, minLength: 2, maxLength: 2 }
           example: AM
           description: ISO 3166-1 alpha-2 (e.g. AM, GB). Optional; if omitted, supplier default may apply.
+        - in: query
+          name: filterBasis
+          required: false
+          schema: { type: string }
+          description: >
+            Filter by board basis, CSV (e.g. "BB,HB"). If omitted, all basises.
+        - in: query
+          name: minStars
+          required: false
+          schema: { type: integer, minimum: 0, maximum: 5 }
+          description: Client-side filter on normalized stars (inclusive).
+        - in: query
+          name: maxStars
+          required: false
+          schema: { type: integer, minimum: 0, maximum: 5 }
+          description: Client-side filter on normalized stars (inclusive).
+        - in: query
+          name: priceMin
+          required: false
+          schema: { type: number, format: float }
+          description: Client-side filter on minPrice.amount (retail preview) — inclusive.
+        - in: query
+          name: priceMax
+          required: false
+          schema: { type: number, format: float }
+          description: Client-side filter on minPrice.amount (retail preview) — inclusive.
+        - in: query
+          name: sort
+          required: false
+          schema:
+            type: string
+            enum: [price_asc, price_desc, stars_desc, stars_asc, name_asc]
+            default: price_asc
+          description: Client-side sort.
+        - in: query
+          name: currency
+          required: false
+          schema: { type: string, minLength: 3, maxLength: 3 }
+          description: >
+            UI/meta currency hint (ISO-4217). NOT sent to supplier; used only for response meta.
         - in: query
           name: includeInfo
           required: false
@@ -122,11 +173,9 @@ paths:
                       arrivalDate: { type: string, format: date }
                       nights: { type: integer }
                       rooms: { type: integer }
-                      adults: { type: integer }
-                      children: { type: integer }
-                      childrenAges:
-                        type: array
-                        items: { type: integer }
+                      adultsCSV: { type: string }
+                      childrenCSV: { type: string }
+                      childrenAgesCSV: { type: string }
                       currencyUsed:
                         type: string
                         nullable: true
@@ -151,10 +200,10 @@ paths:
                     searchContext:
                       arrivalDate: "2025-11-11"
                       nights: 3
-                      rooms: 1
-                      adults: 2
-                      children: 0
-                      childrenAges: []
+                      rooms: 2
+                      adultsCSV: "2,1"
+                      childrenCSV: "1,2"
+                      childrenAgesCSV: "5|9,11"
                       currencyUsed: "USD"
                     meta:
                       provider: "goglobal"
@@ -170,7 +219,8 @@ paths:
                         stars: 4
                         thumbnail: null
                         images:
-                          - { url: "https://i.travelapi.com/lodging/...", isMain: true }
+                          - url: "https://i.travelapi.com/lodging/..."
+                            isMain: true
                         rating: 0
                         reviewsCount: 0
                         externalRating: null
@@ -185,7 +235,7 @@ paths:
                           hotelCode: "875154"
                           cityId: "563"
                         minOffer:
-                          price: { amount: 551, currency: "USD" }
+                          price: { amount: 575, currency: "USD" }
                           board: "BB"
                           refundable: true
                           cxlDeadline: "2025-10-30"
@@ -200,10 +250,12 @@ paths:
                             bufferDays: 4
                           searchCode: "24912730/911582482037300049/114"
                           category: 4
-                          roomName: "Standard Room"
+                          roomName: "Standard Room Double"
+                          roomNames: ["Standard Room Double", "Standard Room Single"]
+                          roomsCount: 2
                           offerProof: "eyJhbGciOi..."
                         offersPreview:
-                          - price: { amount: 551, currency: "USD" }
+                          - price: { amount: 575, currency: "USD" }
                             board: "BB"
                             refundable: true
                             cxlDeadline: "2025-10-30"
@@ -218,13 +270,16 @@ paths:
                               bufferDays: 4
                             searchCode: "24912730/911582482037300049/114"
                             category: 4
-                            roomName: "Standard Room"
+                            roomName: "Standard Room Double"
+                            roomNames: ["Standard Room Double", "Standard Room Single"]
+                            roomsCount: 2
                             offerProof: "eyJhbGciOi..."
-                        minPrice: { amount: 595.08, currency: "USD" }
+                        minPrice: { amount: 592.25, currency: "USD" }
                         hotelInfo:
                           descriptionHtml: "<p>...</p>"
                           facilitiesHtml: "<ul>...</ul>"
                           roomFacilitiesHtml: "<ul>...</ul>"
+
         "4XX":
           description: Error
           content:
@@ -276,7 +331,7 @@ paths:
           name: childrenAges
           required: false
           schema: { type: string, example: "" }
-          description: Comma-separated ages if any
+          description: Comma-separated ages or per-room groups like "5|9,11"
         - in: query
           name: filterBasis
           required: false
@@ -290,32 +345,87 @@ paths:
           name: maxOffers
           required: false
           schema: { type: integer, example: 8 }
+        - in: header
+          name: X-Debug-Role
+          required: false
+          schema:
+            type: string
+            enum: [guest, b2c, office_user, b2b_sales_partner]
+          description: Debug only. Overrides req.user.role for pricing.
+        - in: header
+          name: X-Debug-Markup
+          required: false
+          schema: { type: number, minimum: 0, maximum: 100 }
+          description: Debug only. Used when X-Debug-Role=b2b_sales_partner to set a custom markup %.
       responses:
         "200":
-          description: Normalized hotels & offers (single hotel expected)
+          description: Single hotel with role-aware retail preview per offer
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  hotels:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Hotel"
-                  searchContext:
-                    type: object
+                  hotel:
+                    $ref: "#/components/schemas/HotelSingle"
                   meta:
                     type: object
-                  remarksHtml:
-                    type: string
-                    description: Supplier remark (HTML)
-                  preferred:
-                    type: boolean
-                    description: Supplier 'Preferred' flag
-        "400":
-          description: Bad request
-        "500":
-          description: Internal error
+                    properties:
+                      provider: { type: string, example: goglobal }
+                      found: { type: boolean, example: true }
+                      roleMarkupPct:
+                        type: number
+                        nullable: true
+                        description: Office-only (debug)
+              examples:
+                sample:
+                  value:
+                    hotel:
+                      hotelId: "875154"
+                      name: "HOLIDAY INN DUBAI AL-MAKTOUM AIRPORT"
+                      category: 4
+                      address: "NEAR AIRPORT"
+                      city: "Dubai"
+                      country: "United Arab Emirates"
+                      image: "https://i.travelapi.com/lodging/..."
+                      minRetail: { amount: 216.3, currency: "USD" }
+                      offers:
+                        - roomName: "STANDARD ROOM + STANDARD ROOM"
+                          roomNames: ["STANDARD ROOM","STANDARD ROOM"]
+                          roomsCount: 2
+                          board: "Room Only"
+                          category: 4
+                          price: null
+                          retail: { amount: 210, currency: "USD" }
+                          refundable: true
+                          cxlDeadline: "01/Nov/2025"
+                          cancellation:
+                            supplier: { refundable: true, deadlineUtc: null }
+                            platform: { refundable: true, cutoffUtc: "2025-10-28T20:00:00Z", bufferDays: 4 }
+                            hoursUntilSupplierDeadline: null
+                            refundable: true
+                            supplierDeadlineUtc: null
+                            platformCutoffUtc: "2025-10-28T20:00:00Z"
+                            safeToBook: true
+                            bufferDays: 4
+                          searchCode: "14995767/8116974349427911125/21022"
+                          offerProof: "eyJhbGciOi..."
+                        - roomName: "STANDARD ROOM + DELUXE ROOM"
+                          roomNames: ["STANDARD ROOM","DELUXE ROOM"]
+                          roomsCount: 2
+                          board: "Bed & Breakfast"
+                          category: 4
+                          price: null
+                          retail: { amount: 262, currency: "USD" }
+                          refundable: true
+                          cxlDeadline: "01/Nov/2025"
+                          cancellation:
+                            supplier: { refundable: true, deadlineUtc: null }
+                            platform: { refundable: true, cutoffUtc: "2025-10-28T20:00:00Z", bufferDays: 4 }
+                          searchCode: "14995767/8116974349427911125/21021"
+                          offerProof: "eyJhbGciOi..."
+                    meta:
+                      provider: "goglobal"
+                      found: true
 
   /suppliers/goglobal/valuation:
     get:
@@ -611,11 +721,25 @@ components:
           items:
             $ref: "#/components/schemas/Image"
 
+    # 🔼 USED IN MULTI-HOTEL AVAILABILITY & HOTEL PAGE OFFERS
     OfferLite:
       type: object
       properties:
         price:
-          $ref: "#/components/schemas/Money"
+          allOf: [ { $ref: "#/components/schemas/Money" } ]
+          nullable: true
+          description: Supplier NET; may be null for public roles.
+        retail:
+          allOf: [ { $ref: "#/components/schemas/Money" } ]
+          nullable: true
+          description: Retail (NET + role markup). Present when backend can compute it.
+        retailBreakdown:
+          type: object
+          nullable: true
+          properties:
+            net: { $ref: "#/components/schemas/Money" }
+            markupPct: { type: number }
+            markupAmount: { type: number }
         board:
           type: string
           example: BB
@@ -634,12 +758,25 @@ components:
           example: "25197606/5494176032190393843/13613"
         category:
           type: integer
+        # legacy single name
         roomName:
           type: string
+          nullable: true
+          description: First room name for backward compatibility.
+        # ✨ NEW: full multi-room composition
+        roomNames:
+          type: array
+          items: { type: string }
+          description: Per-room names returned by supplier for this multi-room offer.
+        roomsCount:
+          type: integer
+          nullable: true
+          description: Number of rooms in this offer (derived from roomNames length).
         offerProof:
           type: string
           description: Signed token (use in valuation as ?offerProof= or X-Offer-Proof)
 
+    # 🔼 USED IN MULTI-HOTEL AVAILABILITY
     Hotel:
       type: object
       properties:
@@ -687,6 +824,25 @@ components:
           $ref: "#/components/schemas/Money"
         hotelInfo:
           $ref: "#/components/schemas/HotelInfoSlim"
+
+    # 🔼 USED IN SINGLE-HOTEL AVAILABILITY
+    HotelSingle:
+      type: object
+      properties:
+        hotelId: { type: string }
+        name: { type: string, nullable: true }
+        category: { type: integer, nullable: true }
+        address: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        country: { type: string, nullable: true }
+        image: { type: string, nullable: true }
+        minRetail:
+          allOf:
+            - $ref: "#/components/schemas/Money"
+          nullable: true
+        offers:
+          type: array
+          items: { $ref: "#/components/schemas/OfferLite" }
 
     Valuation:
       type: object
@@ -739,12 +895,11 @@ components:
             bufferDays: { type: integer, nullable: true }
             reason:
               type: string
-              enum: [NON_REFUNDABLE_SUPPLIER, NON_REFUNDABLE_PLATFORM_BUFFER, NO_DEADLINE, null]
+              enum: [NON_REFUNDABLE_SUPPLIER, NON_REFUNDABLE_PLATFORM_BUFFER, NO_DEADLINE]
               nullable: true
         hoursUntilSupplierDeadline:
           type: integer
           nullable: true
-        # legacy flat fields (optional/public)
         refundable: { type: boolean, nullable: true }
         supplierDeadlineUtc: { type: string, format: date-time, nullable: true }
         platformCutoffUtc: { type: string, format: date-time, nullable: true }
