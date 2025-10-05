@@ -19,6 +19,7 @@ import supplierRoutes from "./routes/supplierRoutes.js";
 import metaRoutes from "./routes/meta.js";
 import { mountSwagger } from "./tools/swagger.js";
 import { startExchangeCron } from "./services/exchange/refresh.js";
+import searchSessionRoutes from "./routes/searchSessionRoutes.js";
 
 // Սերվերի ստեղծում
 const app = express();
@@ -59,6 +60,7 @@ app.use("/api/v1/dashboard", dashboardRoutes);
 app.use('/api/v1', settingsRoutes);
 app.use("/api/v1/suppliers", supplierRoutes);
 app.use("/api/v1/meta", metaRoutes);
+app.use("/api/v1/search-session", searchSessionRoutes);
 
 
 // ✅ MongoDB-ի հետ միացում
