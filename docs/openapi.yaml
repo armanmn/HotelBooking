@@ -662,6 +662,217 @@ paths:
                     properties:
                       provider: { type: string, example: goglobal }
 
+  /suppliers/goglobal/book:
+    post:
+      tags: [Suppliers/GoGlobal]
+      summary: Booking Create (BOOKING_INSERT_REQUEST)
+      operationId: goglobalBook
+      description: >
+        Creates a booking with GoGlobal. Payment is **optional** for refundable
+        rates (supplier may allow pay-later). If you must prepay, send
+        `payment.method=SUPPLIER_CC` with `encryptedCard`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookRequest'
+            examples:
+              sample:
+                value:
+                  hotelSearchCode: "25197606/5494176032190393843/13613"
+                  arrivalDate: "2025-12-08"
+                  nights: 3
+                  noAlternativeHotel: true
+                  agentReference: "INV-2025-000123"
+                  pax:
+                    - roomId: 1
+                      persons:
+                        - type: ADT
+                          title: "MR."
+                          firstName: "JOHN"
+                          lastName: "DOE"
+                        - type: CHD
+                          firstName: "JERRY"
+                          lastName: "DOE"
+                          age: 9
+                    - roomId: 2
+                      persons:
+                        - type: ADT
+                          title: "MRS."
+                          firstName: "JAYNE"
+                          lastName: "DOE"
+                        - type: ADT
+                          title: "MR."
+                          firstName: "JIM"
+                          lastName: "DOE"
+                        - type: CHD
+                          firstName: "JEMMA"
+                          lastName: "DOE"
+                          age: 6
+                  notes: "Late arrival ~23:00"
+                  payment:
+                    method: "NONE"
+      responses:
+        "200":
+          description: Booking created / queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+              examples:
+                ok:
+                  value:
+                    status: "C"
+                    goBookingCode: "33456"
+                    goReference: "GO95345-33456-A(IR)"
+                    currency: "EUR"
+                    totalPrice: 1042
+                    cancellationDeadline: "2025-12-06T00:00:00Z"
+        "4XX":
+          description: Error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /suppliers/goglobal/cancel:
+    post:
+      tags: [Suppliers/GoGlobal]
+      summary: Booking Cancel (BOOKING_CANCEL_REQUEST)
+      operationId: goglobalCancel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [goBookingCode]
+              properties:
+                goBookingCode:
+                  type: string
+                reason:
+                  type: string
+                  nullable: true
+            examples:
+              sample:
+                value:
+                  goBookingCode: "33456"
+                  reason: "Test/refundable"
+      responses:
+        "200":
+          description: Cancel response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  goBookingCode: { type: string }
+                  bookingStatus:
+                    type: string
+                    description: "X, RX, C, RJ, VCH, VRQ…"
+              examples:
+                ok:
+                  value:
+                    goBookingCode: "33456"
+                    bookingStatus: "RX"
+        "4XX":
+          description: Error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /suppliers/goglobal/status:
+    get:
+      tags: [Suppliers/GoGlobal]
+      summary: Booking Status (BOOKING_STATUS_REQUEST)
+      operationId: goglobalStatus
+      parameters:
+        - in: query
+          name: goBookingCode
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Current status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  goBookingCode: { type: string }
+                  bookingStatus: { type: string }
+                  currency: { type: string }
+                  totalPrice: { type: number }
+              examples:
+                ok:
+                  value:
+                    goBookingCode: "33456"
+                    bookingStatus: "C"
+                    currency: "EUR"
+                    totalPrice: 1042
+        "4XX":
+          description: Error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /suppliers/goglobal/details:
+    get:
+      tags: [Suppliers/GoGlobal]
+      summary: Booking Details (BOOKING_DETAILS_REQUEST)
+      operationId: goglobalDetails
+      parameters:
+        - in: query
+          name: goBookingCode
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Full booking data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDetails'
+              examples:
+                ok:
+                  value:
+                    goBookingCode: "33456"
+                    bookingStatus: "C"
+                    hotelName: "AC"
+                    hotelSearchCode: "12135/3243212345/53"
+                    arrivalDate: "2025-12-08"
+                    nights: 3
+                    currency: "EUR"
+                    totalPrice: 1042
+                    rooms:
+                      - roomId: 1
+                        board: "RO"
+                        pax:
+                          - type: ADT
+                            title: "MR."
+                            firstName: "JOHN"
+                            lastName: "DOE"
+                      - roomId: 2
+                        board: "RO"
+                        pax:
+                          - type: ADT
+                            title: "MRS."
+                            firstName: "JAYNE"
+                            lastName: "DOE"
+                          - type: ADT
+                            title: "MR."
+                            firstName: "JIM"
+                            lastName: "DOE"
+                          - type: CHD
+                            firstName: "JEMMA"
+                            lastName: "DOE"
+                            age: 6
+        "4XX":
+          description: Error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
 components:
   securitySchemes:
     XDebugRole:
@@ -905,7 +1116,7 @@ components:
         platformCutoffUtc: { type: string, format: date-time, nullable: true }
         safeToBook: { type: boolean, nullable: true }
         bufferDays: { type: integer, nullable: true }
-
+    
     ErrorResponse:
       type: object
       properties:
@@ -913,3 +1124,140 @@ components:
         message: { type: string }
         hint: { type: string }
         context: { type: object }
+        
+    PaxPerson:
+      type: object
+      required: [type, firstName, lastName]
+      properties:
+        type:
+          type: string
+          enum: [ADT, CHD]
+          description: ADT=adult, CHD=child
+        title:
+          type: string
+          nullable: true
+          description: >
+            Adults only. Case-sensitive: MR. / MRS. / MISS / MS.
+            If omitted or invalid, backend maps to MR.
+          enum: ["MR.","MRS.","MISS","MS"]
+        firstName:
+          type: string
+          pattern: '^[A-Za-z][A-Za-z .''-]*$'
+          description: Non-unicode only; must start with a letter.
+        lastName:
+          type: string
+          minLength: 2
+          pattern: '^[A-Za-z]{2}[A-Za-z .''-]*$'
+          description: Non-unicode only; must start with 2 letters.
+        age:
+          type: integer
+          minimum: 0
+          maximum: 18
+          nullable: true
+          description: Required when type=CHD; ignored for ADT.
+
+    RoomPaxGroup:
+      type: object
+      required: [roomId, persons]
+      properties:
+        roomId:
+          type: integer
+          minimum: 1
+        persons:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { $ref: '#/components/schemas/PaxPerson' }
+      description: >
+        RESTRICTIONS ENFORCED BY BACKEND:
+        • each room must have at least 1 adult;
+        • total persons per room ≤ 8;
+        • children per room ≤ 4 (type=CHD);
+        • child ages 0–18;
+        • titles only for adults and must be MR./MRS./MISS/MS.
+
+    BookRequest:
+      type: object
+      required: [hotelSearchCode, arrivalDate, nights, pax, agentReference]
+      properties:
+        hotelSearchCode:
+          type: string
+          description: Offer rate key from availability/valuation (HotelSearchCode/searchCode).
+          example: "25197606/5494176032190393843/13613"
+        arrivalDate:
+          type: string
+          format: date
+        nights:
+          type: integer
+          minimum: 1
+        noAlternativeHotel:
+          type: boolean
+          default: true
+        agentReference:
+          type: string
+          description: Your client reference (echoed back by supplier).
+        notes:
+          type: string
+          nullable: true
+        pax:
+          type: array
+          minItems: 1
+          maxItems: 8
+          description: Per-room traveller lists in room order.
+          items: { $ref: '#/components/schemas/RoomPaxGroup' }
+        payment:
+          type: object
+          nullable: true
+          properties:
+            method:
+              type: string
+              enum: [NONE, SUPPLIER_CC]
+              default: NONE
+              description: >
+                For refundable rates supplier may allow pay-later ⇒ NONE.
+                For prepay flows send SUPPLIER_CC + encryptedCard.
+            encryptedCard:
+              type: string
+              nullable: true
+              description: RSA+base64 per supplier spec (when method=SUPPLIER_CC).
+
+    BookResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Supplier booking status (C, RQ, RJ, RX, X, VCH, VRQ…)
+        goBookingCode:
+          type: string
+        goReference:
+          type: string
+        currency:
+          type: string
+        totalPrice:
+          type: number
+        cancellationDeadline:
+          type: string
+          format: date-time
+
+    BookingDetails:
+      type: object
+      properties:
+        goBookingCode: { type: string }
+        bookingStatus: { type: string }
+        hotelName: { type: string }
+        hotelSearchCode: { type: string }
+        arrivalDate: { type: string, format: date }
+        nights: { type: integer }
+        currency: { type: string }
+        totalPrice: { type: number }
+        rooms:
+          type: array
+          items:
+            type: object
+            properties:
+              roomId: { type: integer }
+              board: { type: string }
+              pax:
+                type: array
+                items: { $ref: '#/components/schemas/PaxPerson' }
+
