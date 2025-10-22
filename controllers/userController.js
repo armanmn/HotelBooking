@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import GlobalSettings from "../models/GlobalSettings.js";
-import Booking from "../models/Booking.js";
+ import Booking from "../models/Booking.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";

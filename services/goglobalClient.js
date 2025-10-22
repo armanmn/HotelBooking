@@ -5,7 +5,60 @@ const REQTYPE = {
   HOTEL_SEARCH: process.env.GG_REQTYPE_HOTEL_SEARCH || "11",
   BOOKING_VALUATION: process.env.GG_REQTYPE_BOOKING_VALUATION || "9",
   HOTEL_INFO: process.env.GG_REQTYPE_HOTEL_INFO || "6",
+  // ⬇️ NEW
+  BOOKING_INSERT: process.env.GG_REQTYPE_BOOKING_INSERT || "2",
+  BOOKING_CANCEL: process.env.GG_REQTYPE_BOOKING_CANCEL || "3",
+  BOOKING_SEARCH: process.env.GG_REQTYPE_BOOKING_SEARCH || "4",
+  BOOKING_STATUS: process.env.GG_REQTYPE_BOOKING_STATUS || "5",
 };
+
+// ------------------------- Helpers (local to this service) -------------------------
+function buildRoomsXmlForInsert(rooms = []) {
+  // Խմբավորում ենք Adults արժեքով՝ ըստ GoGlobal request-ի
+  const groups = new Map();
+  rooms.forEach((r) => {
+    const k = String(r?.adults ?? 0);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  });
+
+  let xml = `<Rooms>`;
+  for (const [adultsStr, list] of groups.entries()) {
+    xml += `<RoomType Adults="${adultsStr}">`;
+    list.forEach((room, idx) => {
+      const pax = Array.isArray(room?.pax) ? room.pax : [];
+      xml += `<Room RoomID="${idx + 1}">`;
+
+      let personId = 1;
+
+      // Մեծահասակներ՝ <PersonName ... />
+      pax
+        .filter((p) => p?.type !== "child")
+        .slice(0, Number(room?.adults || 0))
+        .forEach((p) => {
+          const title = String(p?.title || "").toUpperCase();
+          const fn = String(p?.firstName || "").toUpperCase();
+          const ln = String(p?.lastName || "").toUpperCase();
+          xml += `<PersonName PersonID="${personId++}" Title="${title}" FirstName="${fn}" LastName="${ln}"/>`;
+        });
+
+      // Երեխաներ՝ <ExtraBed ... ChildAge="x" />
+      pax
+        .filter((p) => p?.type === "child")
+        .forEach((p) => {
+          const fn = String(p?.firstName || "").toUpperCase();
+          const ln = String(p?.lastName || "").toUpperCase();
+          const age = Number(p?.age || 0);
+          xml += `<ExtraBed PersonID="${personId++}" FirstName="${fn}" LastName="${ln}" ChildAge="${age}"/>`;
+        });
+
+      xml += `</Room>`;
+    });
+    xml += `</RoomType>`;
+  }
+  xml += `</Rooms>`;
+  return xml;
+}
 
 // Read env with safe fallbacks (so both old/new names work)
 function getSupplierEnv() {
@@ -209,6 +262,158 @@ export async function bookingValuation({ hotelSearchCode, arrivalDate, currency 
     endpoint,
     agency,
     operation: "BOOKING_VALUATION_REQUEST",
+    envelope,
+  });
+
+  return extractProviderPayload(text);
+}
+
+/* ============================================================================
+ * BOOKING INSERT (requestType = 2)
+ * input:
+ *  {
+ *    hotelSearchCode, arrivalDate, nights,
+ *    agentReference?, noAlternativeHotel?=1, leaderPersonId?="1",
+ *    rooms: [{ adults, pax:[ {type:'adult', title, firstName, lastName} | {type:'child', firstName, lastName, age} ] }, ...]
+ *  }
+ * Note: PaymentCreditCard omitted for refundable flow (optional).
+ * ========================================================================== */
+export async function bookingInsert({
+  hotelSearchCode,
+  arrivalDate,
+  nights,
+  agentReference = "inLobby",
+  noAlternativeHotel = 1,
+  leaderPersonId = "1",
+  rooms = [],
+}) {
+  const { endpoint, agency, user, pass } = getSupplierEnv();
+
+  const roomsXml = buildRoomsXmlForInsert(rooms);
+
+  // Պահպանում ենք նույն ձևաչափը, ինչ Postman-ում աշխատեց
+  const inner = `
+    <Main Version="2.3">
+      <AgentReference>${agentReference}</AgentReference>
+      <HotelSearchCode>${hotelSearchCode}</HotelSearchCode>
+      <ArrivalDate>${arrivalDate}</ArrivalDate>
+      <Nights>${Number(nights) || 1}</Nights>
+      <NoAlternativeHotel>${noAlternativeHotel ? 1 : 0}</NoAlternativeHotel>
+      <Leader LeaderPersonID="${leaderPersonId}"/>
+      ${roomsXml}
+      <!-- <PaymentCreditCard>...</PaymentCreditCard> -->
+    </Main>
+  `.trim();
+
+  const envelope = buildSoapEnvelope({
+    requestType: REQTYPE.BOOKING_INSERT,
+    operation: "BOOKING_INSERT_REQUEST",
+    innerXml: inner,
+    agency,
+    user,
+    password: pass,
+  });
+
+  const text = await postSoap({
+    endpoint,
+    agency,
+    operation: "BOOKING_INSERT_REQUEST",
+    envelope,
+  });
+
+  return extractProviderPayload(text); // JSON չլինելու դեպքում => { __rawXml }
+}
+
+/* ============================================================================
+ * BOOKING STATUS (requestType = 5)
+ * input: { goBookingCode }
+ * ========================================================================== */
+export async function bookingStatus({ goBookingCode }) {
+  const { endpoint, agency, user, pass } = getSupplierEnv();
+
+  const inner = `
+    <Main>
+      <GoBookingCode>${goBookingCode}</GoBookingCode>
+    </Main>
+  `.trim();
+
+  const envelope = buildSoapEnvelope({
+    requestType: REQTYPE.BOOKING_STATUS,
+    operation: "BOOKING_STATUS_REQUEST",
+    innerXml: inner,
+    agency,
+    user,
+    password: pass,
+  });
+
+  const text = await postSoap({
+    endpoint,
+    agency,
+    operation: "BOOKING_STATUS_REQUEST",
+    envelope,
+  });
+
+  return extractProviderPayload(text);
+}
+
+/* ============================================================================
+ * BOOKING SEARCH / DETAILS (requestType = 4)
+ * input: { goBookingCode }
+ * ========================================================================== */
+export async function bookingSearch({ goBookingCode }) {
+  const { endpoint, agency, user, pass } = getSupplierEnv();
+
+  const inner = `
+    <Main>
+      <GoBookingCode>${goBookingCode}</GoBookingCode>
+    </Main>
+  `.trim();
+
+  const envelope = buildSoapEnvelope({
+    requestType: REQTYPE.BOOKING_SEARCH,
+    operation: "BOOKING_SEARCH_REQUEST",
+    innerXml: inner,
+    agency,
+    user,
+    password: pass,
+  });
+
+  const text = await postSoap({
+    endpoint,
+    agency,
+    operation: "BOOKING_SEARCH_REQUEST",
+    envelope,
+  });
+
+  return extractProviderPayload(text);
+}
+
+/* ============================================================================
+ * BOOKING CANCEL (requestType = 3)
+ * input: { goBookingCode }
+ * ========================================================================== */
+export async function bookingCancel({ goBookingCode }) {
+  const { endpoint, agency, user, pass } = getSupplierEnv();
+
+  const inner = `
+    <Main>
+      <GoBookingCode>${goBookingCode}</GoBookingCode>
+    </Main>
+  `.trim();
+
+  const envelope = buildSoapEnvelope({
+    requestType: REQTYPE.BOOKING_CANCEL,
+    operation: "BOOKING_CANCEL_REQUEST",
+    innerXml: inner,
+    agency,
+    user,
+    password: pass,
+  });
+
+  const text = await postSoap({
+    endpoint,
+    agency,
+    operation: "BOOKING_CANCEL_REQUEST",
     envelope,
   });
 

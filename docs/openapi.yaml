@@ -9,6 +9,10 @@ servers:
 tags:
   - name: Suppliers/GoGlobal
     description: Live supplier endpoints (read-only in Swagger UI)
+  - name: Bookings (Platform)
+    description: Platform-level booking API (creates & manages local orders; may call suppliers internally)
+  - name: Orders/Hotel
+    description: Manage & review hotel orders created via suppliers.
 
 paths:
   /suppliers/goglobal/availability:
@@ -240,8 +244,18 @@ paths:
                           refundable: true
                           cxlDeadline: "2025-10-30"
                           cancellation:
-                            supplier: { refundable: true, deadlineUtc: "2025-10-30T00:00:00Z" }
-                            platform: { refundable: false, cutoffUtc: "2025-10-26T00:00:00Z", bufferDays: 4, reason: "NON_REFUNDABLE_PLATFORM_BUFFER" }
+                            supplier:
+                              {
+                                refundable: true,
+                                deadlineUtc: "2025-10-30T00:00:00Z",
+                              }
+                            platform:
+                              {
+                                refundable: false,
+                                cutoffUtc: "2025-10-26T00:00:00Z",
+                                bufferDays: 4,
+                                reason: "NON_REFUNDABLE_PLATFORM_BUFFER",
+                              }
                             hoursUntilSupplierDeadline: 720
                             refundable: false
                             supplierDeadlineUtc: null
@@ -251,7 +265,8 @@ paths:
                           searchCode: "24912730/911582482037300049/114"
                           category: 4
                           roomName: "Standard Room Double"
-                          roomNames: ["Standard Room Double", "Standard Room Single"]
+                          roomNames:
+                            ["Standard Room Double", "Standard Room Single"]
                           roomsCount: 2
                           offerProof: "eyJhbGciOi..."
                         offersPreview:
@@ -261,7 +276,13 @@ paths:
                             cxlDeadline: "2025-10-30"
                             cancellation:
                               supplier: { refundable: true, deadlineUtc: null }
-                              platform: { refundable: false, cutoffUtc: "2025-10-26T00:00:00Z", bufferDays: 4, reason: "NON_REFUNDABLE_PLATFORM_BUFFER" }
+                              platform:
+                                {
+                                  refundable: false,
+                                  cutoffUtc: "2025-10-26T00:00:00Z",
+                                  bufferDays: 4,
+                                  reason: "NON_REFUNDABLE_PLATFORM_BUFFER",
+                                }
                               hoursUntilSupplierDeadline: null
                               refundable: false
                               supplierDeadlineUtc: null
@@ -271,7 +292,8 @@ paths:
                             searchCode: "24912730/911582482037300049/114"
                             category: 4
                             roomName: "Standard Room Double"
-                            roomNames: ["Standard Room Double", "Standard Room Single"]
+                            roomNames:
+                              ["Standard Room Double", "Standard Room Single"]
                             roomsCount: 2
                             offerProof: "eyJhbGciOi..."
                         minPrice: { amount: 592.25, currency: "USD" }
@@ -390,7 +412,7 @@ paths:
                       minRetail: { amount: 216.3, currency: "USD" }
                       offers:
                         - roomName: "STANDARD ROOM + STANDARD ROOM"
-                          roomNames: ["STANDARD ROOM","STANDARD ROOM"]
+                          roomNames: ["STANDARD ROOM", "STANDARD ROOM"]
                           roomsCount: 2
                           board: "Room Only"
                           category: 4
@@ -400,7 +422,12 @@ paths:
                           cxlDeadline: "01/Nov/2025"
                           cancellation:
                             supplier: { refundable: true, deadlineUtc: null }
-                            platform: { refundable: true, cutoffUtc: "2025-10-28T20:00:00Z", bufferDays: 4 }
+                            platform:
+                              {
+                                refundable: true,
+                                cutoffUtc: "2025-10-28T20:00:00Z",
+                                bufferDays: 4,
+                              }
                             hoursUntilSupplierDeadline: null
                             refundable: true
                             supplierDeadlineUtc: null
@@ -410,7 +437,7 @@ paths:
                           searchCode: "14995767/8116974349427911125/21022"
                           offerProof: "eyJhbGciOi..."
                         - roomName: "STANDARD ROOM + DELUXE ROOM"
-                          roomNames: ["STANDARD ROOM","DELUXE ROOM"]
+                          roomNames: ["STANDARD ROOM", "DELUXE ROOM"]
                           roomsCount: 2
                           board: "Bed & Breakfast"
                           category: 4
@@ -420,7 +447,12 @@ paths:
                           cxlDeadline: "01/Nov/2025"
                           cancellation:
                             supplier: { refundable: true, deadlineUtc: null }
-                            platform: { refundable: true, cutoffUtc: "2025-10-28T20:00:00Z", bufferDays: 4 }
+                            platform:
+                              {
+                                refundable: true,
+                                cutoffUtc: "2025-10-28T20:00:00Z",
+                                bufferDays: 4,
+                              }
                           searchCode: "14995767/8116974349427911125/21021"
                           offerProof: "eyJhbGciOi..."
                     meta:
@@ -478,7 +510,7 @@ paths:
           required: false
           schema:
             type: string
-            pattern: '^[A-Z]{3}$'
+            pattern: "^[A-Z]{3}$"
             example: USD
           description: Supplier price currency from Availability (ISO 4217).
         - in: header
@@ -502,7 +534,7 @@ paths:
                 type: object
                 properties:
                   valuation:
-                    $ref: '#/components/schemas/Valuation'
+                    $ref: "#/components/schemas/Valuation"
                   meta:
                     type: object
                     properties:
@@ -619,17 +651,17 @@ paths:
                 originalAmount: { type: number, format: float, example: 169.00 }
                 originalCurrency:
                   type: string
-                  pattern: '^[A-Z]{3}$'
+                  pattern: "^[A-Z]{3}$"
                   example: USD
       responses:
         "200":
-          $ref: '#/paths/~1suppliers~1goglobal~1valuation/get/responses/200'
+          $ref: "#/paths/~1suppliers~1goglobal~1valuation/get/responses/200"
         "401":
-          $ref: '#/paths/~1suppliers~1goglobal~1valuation/get/responses/401'
+          $ref: "#/paths/~1suppliers~1goglobal~1valuation/get/responses/401"
         "409":
-          $ref: '#/paths/~1suppliers~1goglobal~1valuation/get/responses/409'
+          $ref: "#/paths/~1suppliers~1goglobal~1valuation/get/responses/409"
         "424":
-          $ref: '#/paths/~1suppliers~1goglobal~1valuation/get/responses/424'
+          $ref: "#/paths/~1suppliers~1goglobal~1valuation/get/responses/424"
 
   /suppliers/goglobal/hotel-info:
     get:
@@ -662,15 +694,31 @@ paths:
                     properties:
                       provider: { type: string, example: goglobal }
 
-  /suppliers/goglobal/book:
+  /suppliers/goglobal/booking/create:
     post:
       tags: [Suppliers/GoGlobal]
       summary: Booking Create (BOOKING_INSERT_REQUEST)
-      operationId: goglobalBook
+      operationId: goglobalBookingCreate
+      security:
+        - XDebugRole: []
+        - XDebugMarkup: []
+        - XOfferProof: []
+      parameters:
+        - in: header
+          name: X-Debug-Role
+          required: false
+          schema:
+            type: string
+            enum: [guest, b2c, office_user, b2b_sales_partner]
+          description: Debug only. Overrides req.user.role for pricing.
+        - in: header
+          name: X-Debug-Markup
+          required: false
+          schema: { type: number, minimum: 0, maximum: 100 }
+          description: Debug only. Used when X-Debug-Role=b2b_sales_partner to set a custom markup %.
       description: >
-        Creates a booking with GoGlobal. Payment is **optional** for refundable
-        rates (supplier may allow pay-later). If you must prepay, send
-        `payment.method=SUPPLIER_CC` with `encryptedCard`.
+        Ստեղծում է ամրագրում GoGlobal-ում՝ multi-room pax-ով (ADT/CHD). Controller-ը ընդունում է
+        ինչպես `pax[]` (roomId + persons[]), այնպես էլ `rooms[]` (adults + pax[])՝ ներքին coerces-ով։
       requestBody:
         required: true
         content:
@@ -678,68 +726,183 @@ paths:
             schema:
               $ref: '#/components/schemas/BookRequest'
             examples:
-              sample:
+              multiRoom:
                 value:
-                  hotelSearchCode: "25197606/5494176032190393843/13613"
-                  arrivalDate: "2025-12-08"
-                  nights: 3
+                  hotelSearchCode: "26106591/307591388318987654/6"
+                  arrivalDate: "2025-12-13"
+                  nights: 2
                   noAlternativeHotel: true
-                  agentReference: "INV-2025-000123"
+                  agentReference: "inLobby Test"
                   pax:
                     - roomId: 1
                       persons:
-                        - type: ADT
-                          title: "MR."
-                          firstName: "JOHN"
-                          lastName: "DOE"
-                        - type: CHD
-                          firstName: "JERRY"
-                          lastName: "DOE"
-                          age: 9
-                    - roomId: 2
-                      persons:
-                        - type: ADT
-                          title: "MRS."
-                          firstName: "JAYNE"
-                          lastName: "DOE"
-                        - type: ADT
-                          title: "MR."
-                          firstName: "JIM"
-                          lastName: "DOE"
-                        - type: CHD
-                          firstName: "JEMMA"
-                          lastName: "DOE"
-                          age: 6
+                        - { type: ADT, title: "MR.",  firstName: "Arman", lastName: "Mnatsakanyan" }
+                        - { type: ADT, title: "MRS.", firstName: "Anna",  lastName: "Grigoryan" }
+                        - { type: CHD,              firstName: "Andranik", lastName: "Mnatsakanyan", age: 10 }
+                        - { type: CHD,              firstName: "Gevorg",   lastName: "Mnatsakanyan", age: 5 }
                   notes: "Late arrival ~23:00"
-                  payment:
-                    method: "NONE"
+                  payment: { method: "NONE" }
       responses:
         "200":
-          description: Booking created / queued
+          description: Booking created (retail + supplier cancellation policy redacted/public)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BookResponse'
+                type: object
+                properties:
+                  booking: { type: object }
+                  meta: { type: object }
               examples:
                 ok:
                   value:
-                    status: "C"
-                    goBookingCode: "33456"
-                    goReference: "GO95345-33456-A(IR)"
-                    currency: "EUR"
-                    totalPrice: 1042
-                    cancellationDeadline: "2025-12-06T00:00:00Z"
+                    booking:
+                      goBookingCode: "33456"
+                      goReference: "GO95345-33456-A(IR)"
+                      status: "C"
+                      price: { amount: 1042.00, currency: "EUR" }
+                      hotel: { id: "875154", name: "HOLIDAY INN DUBAI AL-MAKTOUM AIRPORT" }
+                      context:
+                        hotelSearchCode: "26106591/307591388318987654/6"
+                        arrivalDate: "2025-12-13"
+                        nights: 2
+                        roomBasis: "Bed & Breakfast"
+                      rooms:
+                        - { roomId: 1, adults: 2, pax: [ {type: "adult"}, {type: "adult"}, {type:"child"}, {type:"child"} ] }
+                      cancellation:
+                        platform: { refundable: true, cutoffUtc: "2025-12-09T20:00:00Z", bufferDays: 4 }
+                    meta:
+                      provider: "goglobal"
+                      roleMarkupPct: 8
         "4XX":
           description: Error
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
-  /suppliers/goglobal/cancel:
+  /suppliers/goglobal/booking/details:
+    get:
+      tags: [Suppliers/GoGlobal]
+      summary: Booking Details (BOOKING_DETAILS_REQUEST)
+      operationId: goglobalBookingDetails
+      security:
+        - XDebugRole: []
+        - XDebugMarkup: []
+        - XOfferProof: []
+      parameters:
+        - in: header
+          name: X-Debug-Role
+          required: false
+          schema:
+            type: string
+            enum: [guest, b2c, office_user, b2b_sales_partner]
+          description: Debug only. Overrides req.user.role for pricing.
+        - in: header
+          name: X-Debug-Markup
+          required: false
+          schema: { type: number, minimum: 0, maximum: 100 }
+          description: Debug only. Used when X-Debug-Role=b2b_sales_partner to set a custom markup %.
+        - $ref: '#/components/parameters/GoBookingCodeQuery'
+      responses:
+        "200":
+          description: Full booking data (retail preview, platform cxl-view)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking: { type: object }
+                  meta: { type: object }
+              examples:
+                ok:
+                  value:
+                    booking:
+                      goBookingCode: "33456"
+                      goReference: "GO95345-33456-A(IR)"
+                      status: "C"
+                      price: { amount: 1042.00, currency: "EUR" }
+                      hotel: { id: "875154", name: "AC" }
+                      context:
+                        hotelSearchCode: "26106591/307591388318987654/6"
+                        arrivalDate: "2025-12-13"
+                        nights: 2
+                        roomBasis: "RO"
+                      rooms:
+                        - roomId: 1
+                          pax:
+                            - { type: ADT, title: "MR.",  firstName: "ARMAN", lastName: "MNATSAKANYAN" }
+                            - { type: ADT, title: "MRS.", firstName: "ANNA",  lastName: "GRIGORYAN" }
+                            - { type: CHD, firstName: "ANDRANIK", lastName: "MNATSAKANYAN", age: 10 }
+                            - { type: CHD, firstName: "GEVORG",   lastName: "MNATSAKANYAN", age: 5 }
+                      cancellation:
+                        platform: { refundable: true, cutoffUtc: "2025-12-09T20:00:00Z", bufferDays: 4 }
+                    meta:
+                      provider: "goglobal"
+                      roleMarkupPct: 8
+        "4XX":
+          description: Error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /suppliers/goglobal/booking/status:
+    get:
+      tags: [Suppliers/GoGlobal]
+      summary: Booking Status (BOOKING_STATUS_REQUEST)
+      operationId: goglobalBookingStatus
+      security:
+        - XDebugRole: []
+        - XDebugMarkup: []
+        - XOfferProof: []
+      parameters:
+        - in: header
+          name: X-Debug-Role
+          required: false
+          schema:
+            type: string
+            enum: [guest, b2c, office_user, b2b_sales_partner]
+          description: Debug only. Overrides req.user.role for pricing.
+        - in: header
+          name: X-Debug-Markup
+          required: false
+          schema: { type: number, minimum: 0, maximum: 100 }
+          description: Debug only. Used when X-Debug-Role=b2b_sales_partner to set a custom markup %.
+        - $ref: '#/components/parameters/GoBookingCodeQuery'
+      responses:
+        "200":
+          description: Current supplier status + retail preview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: object }
+                  meta: { type: object }
+              examples:
+                ok:
+                  value:
+                    status:
+                      goBookingCode: "33456"
+                      goReference: "GO95345-33456-A(IR)"
+                      status: "C"   # e.g. C / X / RX / RQ ...
+                      price: { amount: 1042.00, currency: "EUR" }
+                    meta:
+                      provider: "goglobal"
+                      roleMarkupPct: 8
+        "4XX":
+          description: Error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /suppliers/goglobal/booking/cancel:
     post:
       tags: [Suppliers/GoGlobal]
       summary: Booking Cancel (BOOKING_CANCEL_REQUEST)
-      operationId: goglobalCancel
+      operationId: goglobalBookingCancel
+      description: >
+        Ուղարկում է supplier cancel խնդրանք՝ տրված goBookingCode-ով։
+        Վերադարձնում է supplier-ի crude status-ը (X/RX/...), refunds/penalty–ների հաշվարկը
+        կատարվում է platform մակարդակով՝ այլ endpoint-ներում։
       requestBody:
         required: true
         content:
@@ -748,16 +911,13 @@ paths:
               type: object
               required: [goBookingCode]
               properties:
-                goBookingCode:
-                  type: string
-                reason:
-                  type: string
-                  nullable: true
+                goBookingCode: { type: string }
+                reason: { type: string, nullable: true }
             examples:
               sample:
                 value:
                   goBookingCode: "33456"
-                  reason: "Test/refundable"
+                  reason: "Client requested cancellation"
       responses:
         "200":
           description: Cancel response
@@ -766,113 +926,352 @@ paths:
               schema:
                 type: object
                 properties:
-                  goBookingCode: { type: string }
-                  bookingStatus:
-                    type: string
-                    description: "X, RX, C, RJ, VCH, VRQ…"
+                  cancel:
+                    type: object
+                    properties:
+                      goBookingCode: { type: string }
+                      status:
+                        type: string
+                        description: Supplier status (e.g., X, RX, C, RJ, VCH, VRQ…)
+                  meta: { type: object }
               examples:
                 ok:
                   value:
-                    goBookingCode: "33456"
-                    bookingStatus: "RX"
+                    cancel: { goBookingCode: "33456", status: "RX" }
+                    meta: { provider: "goglobal" }
         "4XX":
           description: Error
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
-
-  /suppliers/goglobal/status:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+  
+  /hotel-orders/orders/hotel:
     get:
-      tags: [Suppliers/GoGlobal]
-      summary: Booking Status (BOOKING_STATUS_REQUEST)
-      operationId: goglobalStatus
+      tags: [Orders/Hotel]
+      summary: List my hotel orders (office/admin/finance see all)
+      operationId: listHotelOrders
+      security:
+        - XDebugRole: []
       parameters:
         - in: query
-          name: goBookingCode
-          required: true
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+          description: Page number (1-based)
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+          description: Items per page
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/HotelOrderPlatformStatus"
+          description: Platform status filter (e.g. CONFIRMED, REQUESTED, ...)
+        - in: query
+          name: rawStatus
+          schema:
+            $ref: "#/components/schemas/HotelOrderSupplierStatus"
+          description: Supplier raw status filter (C/RQ/RJ/RX/X/VCH/VRQ)
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [b2c, b2b_sales_partner, office_user, admin, finance]
+          description: Filter by buyer role (office/admin/finance only)
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+          description: Created-at >= from (ISO)
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+          description: Created-at <= to (ISO)
+        - in: query
+          name: q
           schema: { type: string }
+          description: Free text search (platformRef, agentRef, email, hotel/city)
       responses:
         "200":
-          description: Current status
+          description: Paged list of orders (fields are role–aware by ACL)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HotelOrderSummaryPage"
+              examples:
+                ok:
+                  value:
+                    page: 1
+                    limit: 20
+                    total: 2
+                    items:
+                      - platformRef: "IL-H-20251019-74FD09"
+                        status: "CONFIRMED"
+                        role: "b2c"
+                        summary:
+                          agentRef: "inLobby Test"
+                          agency: null
+                          userEmail: "anna@example.com"
+                          city: "Dubai"
+                          service: "RAMEE ROSE"
+                          rooms: 1
+                          leadName: "ARMAN MNATSAKANYAN"
+                          arrivalDate: "2025-12-13"
+                          nights: 3
+                          cancellation: { refundable: true, platformCutoffUtc: "2025-12-06T00:00:00.000Z" }
+                          price: { amount: 246.17, currency: "USD" }
+                          sellingPrice: { amount: 246.17, currency: "USD" }
+                          paid: false
+                      - platformRef: "IL-H-20251018-EBB05D"
+                        status: "CONFIRMED"
+                        role: "b2b_sales_partner"
+                        summary:
+                          agentRef: "Call-#4382 / Anna"
+                          agency: "ACME Travel"
+                          userEmail: "agent@acme.tld"
+                          city: "Dubai"
+                          service: "QUEEN ELIZABETH 2"
+                          rooms: 1
+                          leadName: "ARMAN MNATSAKANYAN"
+                          arrivalDate: "2025-12-13"
+                          nights: 3
+                          cancellation: { refundable: true, platformCutoffUtc: "2025-12-06T00:00:00.000Z" }
+                          price: { amount: 352.26, currency: "USD" }
+                          sellingPrice: { amount: 352.26, currency: "USD" }
+                          paid: false
+        "401":
+          description: Unauthorized (login required or X-Debug-Role missing)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden (insufficient privileges)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /hotel-orders/orders/hotel/{platformRef}:
+    get:
+      tags: [Orders/Hotel]
+      summary: Get order details by platformRef
+      operationId: getHotelOrder
+      security:
+        - XDebugRole: []
+      parameters:
+        - in: path
+          name: platformRef
+          required: true
+          schema: { type: string }
+          description: The platform reference (e.g. IL-H-YYYYMMDD-XXXXXX)
+      responses:
+        "200":
+          description: Full order details (supplier fields are hidden for non-office roles)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HotelOrderDetailResponse"
+              examples:
+                ok:
+                  value:
+                    order:
+                      platformRef: "IL-H-20251019-74FD09"
+                      status: "CONFIRMED"
+                      role: "b2c"
+                      summary:
+                        agentRef: "inLobby Test"
+                        agency: null
+                        userEmail: "anna@example.com"
+                        city: "Dubai"
+                        service: "RAMEE ROSE"
+                        rooms: 1
+                        leadName: "ARMAN MNATSAKANYAN"
+                        arrivalDate: "2025-12-13"
+                        nights: 3
+                        cancellation: { refundable: true, platformCutoffUtc: "2025-12-06T00:00:00.000Z" }
+                        price: { amount: 246.17, currency: "USD" }
+                        sellingPrice: { amount: 246.17, currency: "USD" }
+                        paid: false
+                      details:
+                        hotel:
+                          id: "64081"
+                          name: "RAMEE ROSE"
+                          category: 4
+                          address: "Tecom, Dubai"
+                          city: "Dubai"
+                          country: "United Arab Emirates"
+                          image: "https://..."
+                        context:
+                          hotelSearchCode: "25236127/8511033934022985655/4"
+                          arrivalDate: "2025-12-13"
+                          nights: 3
+                          roomBasis: "Room Only"
+                        rooms:
+                          - roomId: 1
+                            category: "Standard Room"
+                            pax:
+                              - { type: "ADT", title: "MR.", firstName: "ARMAN", lastName: "MNATSAKANYAN" }
+                              - { type: "ADT", title: "MRS.", firstName: "ANNA",  lastName: "GRIGORYAN" }
+                        cancellation:
+                          platform: { refundable: true, cutoffUtc: "2025-12-06T00:00:00.000Z", bufferDays: 4 }
+                          supplier: { refundable: true, deadlineUtc: null }
+                          safeToBook: true
+                          bufferDays: 4
+                        remarksHtml: "<BR />A tax is imposed by the city..."
+                        price:
+                          retail: { amount: 246.17, currency: "USD" }
+                          net: { amount: 239, currency: "USD" }
+                      payment:
+                        status: "unpaid"
+                        method: "none"
+                        provider: null
+                        history: []
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+
+  /hotel-orders/orders/hotel/{platformRef}/agent-ref:
+    patch:
+      tags: [Orders/Hotel]
+      summary: Update Agent Reference (internal note field)
+      operationId: patchAgentRef
+      security:
+        - XDebugRole: []
+      parameters:
+        - in: path
+          name: platformRef
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agentRef]
+              properties:
+                agentRef:
+                  type: string
+                  maxLength: 120
+                  description: Free text internal reference
+            examples:
+              ex:
+                value: { agentRef: "Call-#4382 / Anna" }
+      responses:
+        "200":
+          description: Updated
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  goBookingCode: { type: string }
-                  bookingStatus: { type: string }
-                  currency: { type: string }
-                  totalPrice: { type: number }
+                  ok: { type: boolean }
+                  agentRef: { type: string }
+                required: [ok, agentRef]
               examples:
                 ok:
-                  value:
-                    goBookingCode: "33456"
-                    bookingStatus: "C"
-                    currency: "EUR"
-                    totalPrice: 1042
-        "4XX":
-          description: Error
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
-
-  /suppliers/goglobal/details:
-    get:
-      tags: [Suppliers/GoGlobal]
-      summary: Booking Details (BOOKING_DETAILS_REQUEST)
-      operationId: goglobalDetails
-      parameters:
-        - in: query
-          name: goBookingCode
-          required: true
-          schema: { type: string }
-      responses:
-        "200":
-          description: Full booking data
+                  value: { ok: true, agentRef: "Call-#4382 / Anna" }
+        "401":
+          description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BookingDetails'
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+
+  /suppliers/goglobal/booking/{platformRef}/status-sync:
+    get:
+      tags: [Suppliers/GoGlobal]
+      summary: Sync supplier status by platformRef (updates order + history)
+      operationId: goglobalStatusSyncByPlatformRef
+      security:
+        - XDebugRole: []   # թողնում ենք swagger-ով փորձարկման համար
+      parameters:
+        - in: path
+          name: platformRef
+          required: true
+          schema: { type: string }
+          description: Platform reference (e.g. IL-H-20251019-74FD09)
+        - in: query
+          name: debug
+          schema: { type: integer, enum: [0,1], default: 0 }
+          description: Optional debug preview for supplier raw payload
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoGlobalStatusSyncResponse"
               examples:
                 ok:
                   value:
-                    goBookingCode: "33456"
-                    bookingStatus: "C"
-                    hotelName: "AC"
-                    hotelSearchCode: "12135/3243212345/53"
-                    arrivalDate: "2025-12-08"
-                    nights: 3
-                    currency: "EUR"
-                    totalPrice: 1042
-                    rooms:
-                      - roomId: 1
-                        board: "RO"
-                        pax:
-                          - type: ADT
-                            title: "MR."
-                            firstName: "JOHN"
-                            lastName: "DOE"
-                      - roomId: 2
-                        board: "RO"
-                        pax:
-                          - type: ADT
-                            title: "MRS."
-                            firstName: "JAYNE"
-                            lastName: "DOE"
-                          - type: ADT
-                            title: "MR."
-                            firstName: "JIM"
-                            lastName: "DOE"
-                          - type: CHD
-                            firstName: "JEMMA"
-                            lastName: "DOE"
-                            age: 6
-        "4XX":
-          description: Error
+                    ok: true
+                    platformRef: "IL-H-20251019-74FD09"
+                    supplierRaw: "X"
+                    status: "X"
+                    statusLabel: "Cancelled"
+                    changed: true
+                    prev: { raw: "C", status: "C", statusLabel: "Confirmed" }
+                    next: { raw: "X", status: "X", statusLabel: "Cancelled" }
+        "404":
+          description: Order not found
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /suppliers/goglobal/booking/{platformRef}/cancel:
+    post:
+      tags: [Suppliers/GoGlobal]
+      summary: Cancel booking by platformRef (persists supplier status to order)
+      operationId: goglobalCancelByPlatformRef
+      security:
+        - XDebugRole: []
+      parameters:
+        - in: path
+          name: platformRef
+          required: true
+          schema: { type: string }
+          description: Platform reference (e.g. IL-H-20251019-74FD09)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Optional free-text reason (stored in history)
+      responses:
+        "200":
+          description: Cancel result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoGlobalCancelByPlatformRefResponse"
+              examples:
+                ok:
+                  value:
+                    ok: true
+                    platformRef: "IL-H-20251019-74FD09"
+                    accepted: true
+                    supplierRaw: "X"
+                    status: "X"
+                    statusLabel: "Cancelled"
+                    prev: { raw: "X", status: "X", statusLabel: "Cancelled" }
+                    next: { raw: "X", status: "X", statusLabel: "Cancelled" }
+        "404":
+          description: Order not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  
 components:
   securitySchemes:
     XDebugRole:
@@ -890,6 +1289,20 @@ components:
       description: >
         Signed token from Availability (offerProof). If present, Valuation can succeed even when supplier
         omits <Rates/>. Body/query take precedence over this header.
+  parameters:
+    BookingIdParam:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+      description: Platform booking ID (Mongo ObjectId or ULID)
+    
+    GoBookingCodeQuery:
+      name: goBookingCode
+      in: query
+      required: true
+      schema: { type: string }
+      description: Supplier booking code returned by BOOKING_INSERT / BOOKING_SEARCH
 
   schemas:
     Money:
@@ -908,6 +1321,7 @@ components:
         url: { type: string }
         isMain: { type: boolean }
 
+    # ─────────── Hotel info (supplier-side) ───────────
     HotelInfoSlim:
       type: object
       properties:
@@ -937,11 +1351,11 @@ components:
       type: object
       properties:
         price:
-          allOf: [ { $ref: "#/components/schemas/Money" } ]
+          allOf: [{ $ref: "#/components/schemas/Money" }]
           nullable: true
           description: Supplier NET; may be null for public roles.
         retail:
-          allOf: [ { $ref: "#/components/schemas/Money" } ]
+          allOf: [{ $ref: "#/components/schemas/Money" }]
           nullable: true
           description: Retail (NET + role markup). Present when backend can compute it.
         retailBreakdown:
@@ -969,12 +1383,10 @@ components:
           example: "25197606/5494176032190393843/13613"
         category:
           type: integer
-        # legacy single name
         roomName:
           type: string
           nullable: true
           description: First room name for backward compatibility.
-        # ✨ NEW: full multi-room composition
         roomNames:
           type: array
           items: { type: string }
@@ -1059,11 +1471,11 @@ components:
       type: object
       properties:
         price:
-          $ref: '#/components/schemas/Money'
+          $ref: "#/components/schemas/Money"
         supplierPrice:
-          $ref: '#/components/schemas/Money'
+          $ref: "#/components/schemas/Money"
         cancellation:
-          $ref: '#/components/schemas/CancellationV2'
+          $ref: "#/components/schemas/CancellationV2"
         remarks:
           type: string
         remarksAnnotatedHtml:
@@ -1072,9 +1484,9 @@ components:
         breakdown:
           type: object
           properties:
-            supplierBase: { $ref: '#/components/schemas/Money' }
-            markup: { $ref: '#/components/schemas/Money' }
-            total: { $ref: '#/components/schemas/Money' }
+            supplierBase: { $ref: "#/components/schemas/Money" }
+            markup: { $ref: "#/components/schemas/Money" }
+            total: { $ref: "#/components/schemas/Money" }
             supplierBaseAmd: { type: number, nullable: true }
             markupAmd: { type: number, nullable: true }
             totalAmd: { type: number, nullable: true }
@@ -1084,7 +1496,8 @@ components:
                 base: { type: string, example: AMD }
                 usedRateFor: { type: string, example: USD }
                 rate: { type: number, example: 387.5, nullable: true }
-                lastUpdatedAt: { type: string, format: date-time, nullable: true }
+                lastUpdatedAt:
+                  { type: string, format: date-time, nullable: true }
             taxesAndFees:
               type: object
               properties:
@@ -1106,7 +1519,12 @@ components:
             bufferDays: { type: integer, nullable: true }
             reason:
               type: string
-              enum: [NON_REFUNDABLE_SUPPLIER, NON_REFUNDABLE_PLATFORM_BUFFER, NO_DEADLINE]
+              enum:
+                [
+                  NON_REFUNDABLE_SUPPLIER,
+                  NON_REFUNDABLE_PLATFORM_BUFFER,
+                  NO_DEADLINE,
+                ]
               nullable: true
         hoursUntilSupplierDeadline:
           type: integer
@@ -1116,7 +1534,7 @@ components:
         platformCutoffUtc: { type: string, format: date-time, nullable: true }
         safeToBook: { type: boolean, nullable: true }
         bufferDays: { type: integer, nullable: true }
-    
+
     ErrorResponse:
       type: object
       properties:
@@ -1124,7 +1542,8 @@ components:
         message: { type: string }
         hint: { type: string }
         context: { type: object }
-        
+
+    # ─────────── Pax / Booking DTOs (kept as-is) ───────────
     PaxPerson:
       type: object
       required: [type, firstName, lastName]
@@ -1139,15 +1558,15 @@ components:
           description: >
             Adults only. Case-sensitive: MR. / MRS. / MISS / MS.
             If omitted or invalid, backend maps to MR.
-          enum: ["MR.","MRS.","MISS","MS"]
+          enum: ["MR.", "MRS.", "MISS", "MS"]
         firstName:
           type: string
-          pattern: '^[A-Za-z][A-Za-z .''-]*$'
+          pattern: "^[A-Za-z][A-Za-z .'-]*$"
           description: Non-unicode only; must start with a letter.
         lastName:
           type: string
           minLength: 2
-          pattern: '^[A-Za-z]{2}[A-Za-z .''-]*$'
+          pattern: "^[A-Za-z]{2}[A-Za-z .'-]*$"
           description: Non-unicode only; must start with 2 letters.
         age:
           type: integer
@@ -1167,7 +1586,7 @@ components:
           type: array
           minItems: 1
           maxItems: 8
-          items: { $ref: '#/components/schemas/PaxPerson' }
+          items: { $ref: "#/components/schemas/PaxPerson" }
       description: >
         RESTRICTIONS ENFORCED BY BACKEND:
         • each room must have at least 1 adult;
@@ -1204,7 +1623,7 @@ components:
           minItems: 1
           maxItems: 8
           description: Per-room traveller lists in room order.
-          items: { $ref: '#/components/schemas/RoomPaxGroup' }
+          items: { $ref: "#/components/schemas/RoomPaxGroup" }
         payment:
           type: object
           nullable: true
@@ -1213,9 +1632,6 @@ components:
               type: string
               enum: [NONE, SUPPLIER_CC]
               default: NONE
-              description: >
-                For refundable rates supplier may allow pay-later ⇒ NONE.
-                For prepay flows send SUPPLIER_CC + encryptedCard.
             encryptedCard:
               type: string
               nullable: true
@@ -1259,5 +1675,499 @@ components:
               board: { type: string }
               pax:
                 type: array
-                items: { $ref: '#/components/schemas/PaxPerson' }
+                items: { $ref: "#/components/schemas/PaxPerson" }
+
+    BookingStatus:
+      type: string
+      enum: [waiting_approval, confirmed, cancelled, rejected_by_partner]
+
+    PaymentStatus:
+      type: string
+      enum: [not_paid, paid_pending_verification, verified, refunded]
+
+    MainOrderStatus:
+      type: string
+      enum:
+        [
+          awaiting_payment,
+          awaiting_confirmation,
+          confirmed,
+          cancelled_by_user,
+          cancelled_due_to_no_payment,
+          rejected,
+          refunded,
+        ]
+
+    PaymentMethod:
+      type: string
+      enum: [credit_card, balance, pay_later]
+
+    ContactInfo:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        phone: { type: string }
+        address: { type: string, nullable: true }
+
+    LeadGuest:
+      type: object
+      required: [firstName, lastName]
+      properties:
+        title:
+          type: string
+          nullable: true
+          enum: ["MR.", "MRS.", "MISS", "MS"]
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+
+    PlatformPaymentInput:
+      type: object
+      required: [method]
+      properties:
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+        cardToken:
+          type: string
+          nullable: true
+        useBalanceIfSufficient:
+          type: boolean
+          default: false
+
+    PlatformTotalsInput:
+      type: object
+      required: [currency, totalPrice]
+      properties:
+        currency:
+          type: string
+          description: ISO 4217 (e.g., EUR, USD, AMD)
+        totalPrice:
+          type: number
+          description: >
+            **Authoritative total** from valuation/offer (includes markup).
+        breakdownNote:
+          type: string
+          nullable: true
+
+    PlatformBookingCreateRequest:
+      type: object
+      required:
+        - hotelSearchCode
+        - arrivalDate
+        - nights
+        - pax
+        - leadGuest
+        - payment
+        - totals
+      properties:
+        offerProof:
+          type: string
+          description: Signed token from Availability (recommended for safety)
+        hotelSearchCode:
+          type: string
+          description: Offer rate key used for supplier booking/valuation
+        hotelId:
+          type: string
+          description: Supplier hotel code (for traceability)
+        cityId:
+          type: string
+          description: Supplier/internal city id (for traceability)
+        arrivalDate:
+          type: string
+          format: date
+        nights:
+          type: integer
+          minimum: 1
+        nationality:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: AM
+        leadGuest:
+          $ref: "#/components/schemas/LeadGuest"
+        contact:
+          $ref: "#/components/schemas/ContactInfo"
+        pax:
+          type: array
+          minItems: 1
+          maxItems: 9
+          description: Per-room pax groups. Room IDs should be 1..N in room order.
+          items: { $ref: "#/components/schemas/RoomPaxGroup" }
+        notes:
+          type: string
+          nullable: true
+        payment:
+          $ref: "#/components/schemas/PlatformPaymentInput"
+        totals:
+          $ref: "#/components/schemas/PlatformTotalsInput"
+
+    PlatformPayment:
+      type: object
+      properties:
+        method: { $ref: "#/components/schemas/PaymentMethod" }
+        status: { $ref: "#/components/schemas/PaymentStatus" }
+        amount:
+          $ref: "#/components/schemas/Money"
+        transactions:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              kind: { type: string, enum: [incoming, outgoing] }
+              amount: { $ref: "#/components/schemas/Money" }
+              createdAt: { type: string, format: date-time }
+              note: { type: string, nullable: true }
+
+    PlatformBooking:
+      type: object
+      properties:
+        id: { type: string, description: "Platform booking id" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        supplier:
+          type: object
+          properties:
+            provider: { type: string, example: goglobal }
+            goBookingCode: { type: string, nullable: true }
+            goReference: { type: string, nullable: true }
+        context:
+          type: object
+          properties:
+            hotelSearchCode: { type: string }
+            offerProof: { type: string, nullable: true }
+            hotelId: { type: string }
+            cityId: { type: string }
+            arrivalDate: { type: string, format: date }
+            nights: { type: integer }
+            nationality: { type: string }
+        leadGuest:
+          $ref: "#/components/schemas/LeadGuest"
+        contact:
+          $ref: "#/components/schemas/ContactInfo"
+        pax:
+          type: array
+          items: { $ref: "#/components/schemas/RoomPaxGroup" }
+        notes: { type: string, nullable: true }
+        bookingStatus: { $ref: "#/components/schemas/BookingStatus" }
+        payment:
+          $ref: "#/components/schemas/PlatformPayment"
+        mainStatus: { $ref: "#/components/schemas/MainOrderStatus" }
+        totals:
+          type: object
+          properties:
+            price: { $ref: "#/components/schemas/Money" }
+            priceAmd: { type: number, nullable: true }
+            exchange:
+              type: object
+              properties:
+                base: { type: string, example: AMD }
+                usedRateFor: { type: string, example: EUR }
+                rate: { type: number, nullable: true }
+                lastUpdatedAt: { type: string, format: date-time, nullable: true }
+
+    PlatformBookingStatus:
+      type: object
+      properties:
+        id: { type: string }
+        bookingStatus: { $ref: "#/components/schemas/BookingStatus" }
+        paymentStatus: { $ref: "#/components/schemas/PaymentStatus" }
+        mainStatus: { $ref: "#/components/schemas/MainOrderStatus" }
+        supplier:
+          type: object
+          properties:
+            provider: { type: string, example: goglobal }
+            goBookingCode: { type: string, nullable: true }
+            rawSupplierStatus:
+              {
+                type: string,
+                nullable: true,
+                description: "e.g., C, RX, RJ, VRQ…",
+              }
+        updatedAt: { type: string, format: date-time }
+
+    PlatformCancelRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+        refundProposal:
+          type: object
+          nullable: true
+          properties:
+            refundableAmount: { type: number }
+            penaltyFee: { type: number }
+            currency: { type: string }
+
+    PlatformCancelResponse:
+      type: object
+      properties:
+        id: { type: string }
+        bookingStatus: { $ref: "#/components/schemas/BookingStatus" }
+        paymentStatus: { $ref: "#/components/schemas/PaymentStatus" }
+        mainStatus: { $ref: "#/components/schemas/MainOrderStatus" }
+        supplier:
+          type: object
+          properties:
+            provider: { type: string, example: goglobal }
+            goBookingCode: { type: string, nullable: true }
+            rawSupplierStatus: { type: string, nullable: true }
+        note: { type: string, nullable: true }
+
+    # ─────────── NEW: status enums & ops meta ───────────
+    HotelOrderPlatformStatus:
+      type: string
+      enum:
+        - CONFIRMED
+        - REQUESTED
+        - REJECTED
+        - CANCELLING
+        - CANCELLED
+        - VOUCHER_ISSUED
+        - VOUCHER_REQUESTED
+        - PENDING
+        - FAILED
+
+    HotelOrderSupplierStatus:
+      type: string
+      enum: [C, RQ, RJ, RX, X, VCH, VRQ]
+
+    HotelOrderOpsMeta:
+      type: object
+      properties:
+        supplier: { type: string, example: goglobal }
+        rawStatus:
+          $ref: "#/components/schemas/HotelOrderSupplierStatus"
+        rawStatusLabel: { type: string }
+        supplierRef: { type: string, nullable: true }
+        supplierBookingCode: { type: string, nullable: true }
+
+    # ─────────── NEW: Orders list (flattened items) ───────────
+    CancellationSummary:
+      type: object
+      properties:
+        refundable: { type: boolean, nullable: true }
+        platformCutoffUtc: { type: string, format: date-time, nullable: true }
+
+    HotelOrderListItem:
+      type: object
+      properties:
+        platformRef: { type: string }
+        status:
+          $ref: "#/components/schemas/HotelOrderPlatformStatus"
+        statusLabel: { type: string }
+        isPayable: { type: boolean }
+        role: { type: string }
+        agentRef: { type: string, nullable: true }
+        agency: { type: string, nullable: true }
+        user: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        service: { type: string, nullable: true }
+        rooms: { type: integer }
+        leadName: { type: string, nullable: true }
+        arrivalDate: { type: string, format: date }
+        nights: { type: integer }
+        cancellation: { $ref: "#/components/schemas/CancellationSummary" }
+        price: { $ref: "#/components/schemas/Money" }
+        paid: { type: boolean }
+        _ops:
+          $ref: "#/components/schemas/HotelOrderOpsMeta"
+
+    HotelOrderSummaryPage:
+      type: object
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/HotelOrderListItem" }
+
+    # ─────────── Order details (platform-level) ───────────
+    HotelMini:
+      type: object
+      properties:
+        id: { type: string, nullable: true }
+        name: { type: string, nullable: true }
+        category: { type: integer, nullable: true }
+        address: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        country: { type: string, nullable: true }
+        image: { type: string, nullable: true }
+
+    HotelOrderDetails:
+      type: object
+      properties:
+        hotel: { $ref: "#/components/schemas/HotelMini" }
+        context:
+          type: object
+          properties:
+            hotelSearchCode: { type: string, nullable: true }
+            arrivalDate: { type: string, format: date, nullable: true }
+            nights: { type: integer, nullable: true }
+            roomBasis: { type: string, nullable: true }
+        rooms:
+          type: array
+          items:
+            type: object
+            properties:
+              roomId: { type: integer }
+              category: { type: string, nullable: true }
+              pax:
+                type: array
+                items: { $ref: "#/components/schemas/PaxPerson" }
+        cancellation:
+          $ref: "#/components/schemas/CancellationV2"
+        remarksHtml: { type: string, nullable: true }
+        price:
+          type: object
+          properties:
+            retail: { $ref: "#/components/schemas/Money" }
+            net: { $ref: "#/components/schemas/Money" }
+
+    PaymentInfo:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [unpaid, authorized, captured, paid, settled, refunded, partially_refunded, failed]
+        method:
+          type: string
+          enum: [none, arca, deposit, manual]
+          description: Matches order model (none/arca/deposit/manual)
+        provider: { type: string, nullable: true }
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              at: { type: string, format: date-time }
+              status: { type: string }
+              note: { type: string, nullable: true }
+
+    HotelOrderDetail:
+      type: object
+      properties:
+        platformRef: { type: string }
+        status:
+          $ref: "#/components/schemas/HotelOrderPlatformStatus"
+        statusLabel: { type: string }
+        isPayable: { type: boolean }
+        role: { type: string }
+        supplier:
+          type: object
+          properties:
+            code: { type: string, example: goglobal }
+            bookingCode: { type: string, nullable: true }
+            supplierRef: { type: string, nullable: true }
+            rawStatus:
+              $ref: "#/components/schemas/HotelOrderSupplierStatus"
+            rawStatusLabel: { type: string }
+        hotel:
+          type: object
+          properties:
+            id: { type: string, nullable: true }
+            name: { type: string, nullable: true }
+            cityName: { type: string, nullable: true }
+            countryName: { type: string, nullable: true }
+        context:
+          type: object
+          properties:
+            hotelSearchCode: { type: string, nullable: true }
+            arrivalDate: { type: string, format: date, nullable: true }
+            nights: { type: integer, nullable: true }
+            roomsCount: { type: integer, nullable: true }
+            roomBasis: { type: string, nullable: true }
+        price:
+          type: object
+          properties:
+            amount: { type: number, nullable: true }
+            currency: { type: string, nullable: true }
+            markupPct: { type: number, nullable: true }
+        cancellation:
+          $ref: "#/components/schemas/CancellationSummary"
+        rooms:
+          type: array
+          items:
+            type: object
+            properties:
+              roomId: { type: integer }
+              pax:
+                type: array
+                items: { $ref: "#/components/schemas/PaxPerson" }
+        supplierRemarksHtml: { type: string, nullable: true }
+        clientRemark: { type: string, nullable: true }
+        payment: { $ref: "#/components/schemas/PaymentInfo" }
+
+    HotelOrderDetailResponse:
+      type: object
+      properties:
+        order: { $ref: "#/components/schemas/HotelOrderDetail" }
+
+    GoGlobalStatusTriplet:
+      type: object
+      properties:
+        raw:
+          type: string
+          description: Supplier raw status (C, X, RX, RQ, VCH, VRQ…)
+        status:
+          type: string
+          description: Platform-mapped status (C, X, RX, RQ, RJ, PENDING, FAILED)
+        statusLabel:
+          type: string
+          description: Human readable label, e.g. Confirmed / Cancelled
+
+    GoGlobalStatusSyncResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        platformRef: { type: string }
+        supplierRaw:
+          type: string
+          nullable: true
+          description: Raw status returned from supplier after sync
+        status:
+          type: string
+          description: Platform status after sync
+        statusLabel: { type: string }
+        changed:
+          type: boolean
+          description: Whether persisted platform/raw status changed
+        prev:
+          allOf:
+            - $ref: "#/components/schemas/GoGlobalStatusTriplet"
+          nullable: true
+        next:
+          allOf:
+            - $ref: "#/components/schemas/GoGlobalStatusTriplet"
+          nullable: true
+        debugPreview:
+          type: object
+          nullable: true
+          description: Present only when ?debug=1
+
+    GoGlobalCancelByPlatformRefResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        platformRef: { type: string }
+        accepted:
+          type: boolean
+          description: Supplier accepted the cancel request (X or RX)
+        supplierRaw:
+          type: string
+          nullable: true
+        status:
+          type: string
+        statusLabel:
+          type: string
+        prev:
+          allOf:
+            - $ref: "#/components/schemas/GoGlobalStatusTriplet"
+          nullable: true
+        next:
+          allOf:
+            - $ref: "#/components/schemas/GoGlobalStatusTriplet"
+          nullable: true
 
