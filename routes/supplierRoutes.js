@@ -2,7 +2,7 @@
 // /routes/supplierRoutes.js
 import express from "express";
 import optionalAuth from "../middlewares/optionalAuth.js";
-import { requireAuthOrDebug } from "../utils/acl.js";
+import { requireAuthOrDebug, requireOwnerOrOps } from "../utils/acl.js";
 import {
   goglobalAvailability,
   goglobalValuation,
@@ -34,7 +34,7 @@ router.post("/goglobal/booking/cancel",  optionalAuth, goglobalBookingCancel);
 // NEW: PlatformRef-based Order actions → AUTH-ED (կամ Debug)
 // Հետագայում փոխարինել requireAuthOrDebug requireAuth ով, դեռևս swagger տեստի համար
 // օգտագործում ենք requireAuthOrDebug ը
-router.post("/goglobal/booking/:platformRef/cancel",     requireAuthOrDebug, goglobalBookingCancelByPlatformRef);
-router.get ("/goglobal/booking/:platformRef/status-sync", requireAuthOrDebug, goglobalBookingStatusSyncByPlatformRef);
+router.post("/goglobal/booking/:platformRef/cancel",     optionalAuth, requireOwnerOrOps, goglobalBookingCancelByPlatformRef);
+router.get ("/goglobal/booking/:platformRef/status-sync", optionalAuth, requireOwnerOrOps, goglobalBookingStatusSyncByPlatformRef);
 
 export default router;

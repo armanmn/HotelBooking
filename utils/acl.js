@@ -1,6 +1,6 @@
 // New
 // utils/acl.js
-export const OPS_ROLES = new Set(["office_user", "finance", "finance_user", "admin"]);
+export const OPS_ROLES = new Set(["office_user", "finance_user", "admin"]);
 
 export function getUserId(req) {
   // JWT middleware usually sets { id, role }, while some old code expects _id

@@ -30,6 +30,7 @@ import {
   isPayable,
   isSupplierStatusCode,
 } from "../services/orders/status.js";
+import { ensureSummaryAndIdentity } from "../services/orders/normalize.js";
 
 /* ----------------------------- Utils / helpers ----------------------------- */
 
@@ -140,14 +141,40 @@ function cityFromId(cityId) {
   return m.get(String(cityId)) || null;
 }
 
-const toNum = (v, d = 0) => {
+const toNum = (v, def = 0) => {
   const n = Number(v);
-  return Number.isFinite(n) ? n : d;
+  return Number.isFinite(n) ? n : def;
 };
 
 // Role-based markup
+// async function getRoleMarkupPct(req) {
+//   //const settings = await GlobalSettings.findOne({});
+//   const settings = await GlobalSettings.findOne({}).sort({
+//     updatedAt: -1,
+//     _id: -1,
+//   });
+//   const b2cPct = toNum(settings?.b2cMarkupPercentage, 0);
+//   const officePct = toNum(settings?.officeMarkupPercentage, 0);
+//   const defaultSPPct = toNum(settings?.defaultSalesPartnerMarkup, 0);
+
+//   console.log("MarkupSettings", {
+//     id: settings?._id?.toString(),
+//     b2c: settings?.b2cMarkupPercentage,
+//     office: settings?.officeMarkupPercentage,
+//     spDefault: settings?.defaultSalesPartnerMarkup,
+//     role: req.user?.role || "guest",
+//   });
+
+//   const role = req.user?.role || "guest";
+//   if (role === "b2c" || role === "guest") return b2cPct;
+//   if (role === "office_user") return officePct;
+//   if (role === "b2b_sales_partner") {
+//     return req.user?.markupPercentage ?? defaultSPPct;
+//   }
+//   return 0;
+// }
+
 async function getRoleMarkupPct(req) {
-  //const settings = await GlobalSettings.findOne({});
   const settings = await GlobalSettings.findOne({}).sort({
     updatedAt: -1,
     _id: -1,
@@ -168,7 +195,7 @@ async function getRoleMarkupPct(req) {
   if (role === "b2c" || role === "guest") return b2cPct;
   if (role === "office_user") return officePct;
   if (role === "b2b_sales_partner") {
-    return req.user?.markupPercentage ?? defaultSPPct;
+    return toNum(req.user?.markupPercentage, defaultSPPct);
   }
   return 0;
 }
@@ -2485,7 +2512,7 @@ export const goglobalBookingCreate = async (req, res) => {
       }
     }
     const isOfficeRole = (role) =>
-      ["office_user", "admin", "finance"].includes(
+      ["office_user", "admin", "finance_user"].includes(
         String(role || "").toLowerCase()
       );
     const office = isOfficeRole(req.user?.role);
@@ -2780,6 +2807,15 @@ export const goglobalBookingCreate = async (req, res) => {
       // Generate platformRef BEFORE save (model requires it)
       orderDoc.platformRef = makePlatformRef(orderDoc._id);
 
+      // ✨ NEW: fill identity + summary before save (userEmail, agencyName, summary.*)
+      {
+        const { set } = await ensureSummaryAndIdentity(
+          orderDoc.toObject(),
+          req.user
+        );
+        Object.assign(orderDoc, set);
+      }
+
       await orderDoc.save();
 
       // Return platformRef to FE
@@ -2816,7 +2852,7 @@ export const goglobalBookingDetails = async (req, res) => {
       }
     }
     const isOfficeRole = (role) =>
-      ["office_user", "admin", "finance"].includes(
+      ["office_user", "admin", "finance_user"].includes(
         String(role || "").toLowerCase()
       );
     const office = isOfficeRole(req.user?.role);
@@ -3039,7 +3075,8 @@ export const goglobalBookingStatusSyncByPlatformRef = async (req, res) => {
       if (wantDebug) {
         out.debugPreview = {
           type: typeof resp,
-          keys: resp && typeof resp === "object" ? Object.keys(resp) : undefined,
+          keys:
+            resp && typeof resp === "object" ? Object.keys(resp) : undefined,
           xmlPreview:
             typeof resp === "string" ? String(resp).slice(0, 400) : undefined,
         };
@@ -3076,11 +3113,10 @@ export const goglobalBookingStatusSyncByPlatformRef = async (req, res) => {
     return res.json({
       ok: true,
       platformRef,
-      supplierRaw: rawForPersist,                  // e.g. "X" / "C" / "RX"
-      status: nextPlatform,                        // mapped platform code (քո platform/status դաշտը)
+      supplierRaw: rawForPersist, // e.g. "X" / "C" / "RX"
+      status: nextPlatform, // mapped platform code (քո platform/status դաշտը)
       statusLabel: platformStatusLabel(nextPlatform),
-      changed:
-        prevPlatform !== nextPlatform || prevRaw !== rawForPersist,
+      changed: prevPlatform !== nextPlatform || prevRaw !== rawForPersist,
       prev: {
         raw: prevRaw,
         status: prevPlatform,
@@ -3102,7 +3138,9 @@ export const goglobalBookingStatusSyncByPlatformRef = async (req, res) => {
     });
   } catch (e) {
     console.error("status-sync error:", e);
-    return res.status(500).json({ message: "Status sync failed", error: e.message });
+    return res
+      .status(500)
+      .json({ message: "Status sync failed", error: e.message });
   }
 };
 

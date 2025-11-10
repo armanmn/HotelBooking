@@ -138,9 +138,10 @@ export const loginUser = async (req, res) => {
 
     console.log("✅ Login successful for", email);
 
-    generateToken(res, user._id, user.role, {
-      markupPercentage: user.markupPercentage ?? null, // ✅ payload-ի մեջ
-    });
+    // generateToken(res, user._id, user.role, {
+    //   markupPercentage: user.markupPercentage ?? null, // ✅ payload-ի մեջ
+    // });
+    generateToken(res, user._id, user.role);
 
     const { password: _, ...userData } = user._doc;
     res.status(200).json({ message: "Login successful", user: userData });
