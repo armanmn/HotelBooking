@@ -166,22 +166,38 @@ export const logoutUser = async (req, res) => {
   }
 };
 
+// export const requestPasswordReset = async (req, res) => {
+//   try {
+//     const { email } = req.body;
+//     const user = await User.findOne({ email });
+
+//     if (!user) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
+
+//     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+//       expiresIn: "1h",
+//     });
+//     await sendResetEmail(user.email, token); // ✅ Ուղարկում ենք Reset Link-ը
+
+//     res.status(200).json({ message: "Password reset link sent successfully." });
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// };
+
 export const requestPasswordReset = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
-    await sendResetEmail(user.email, token); // ✅ Ուղարկում ենք Reset Link-ը
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    await sendResetEmail(user.email, token);
 
     res.status(200).json({ message: "Password reset link sent successfully." });
   } catch (error) {
+    console.error("requestPasswordReset failed:", error?.message, error?.code, error?.response);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

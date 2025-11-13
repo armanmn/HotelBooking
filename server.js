@@ -21,6 +21,7 @@ import { mountSwagger } from "./tools/swagger.js";
 import { startExchangeCron } from "./services/exchange/refresh.js";
 import searchSessionRoutes from "./routes/searchSessionRoutes.js";
 import hotelOrdersRoutes from "./routes/hotelOrdersRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 // Սերվերի ստեղծում
 const app = express();
@@ -63,6 +64,7 @@ app.use("/api/v1/suppliers", supplierRoutes);
 app.use("/api/v1/meta", metaRoutes);
 app.use("/api/v1/search-session", searchSessionRoutes);
 app.use("/api/v1/hotel-orders", hotelOrdersRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 
 
 // ✅ MongoDB-ի հետ միացում

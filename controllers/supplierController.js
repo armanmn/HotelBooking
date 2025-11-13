@@ -31,6 +31,7 @@ import {
   isSupplierStatusCode,
 } from "../services/orders/status.js";
 import { ensureSummaryAndIdentity } from "../services/orders/normalize.js";
+import { notifyOnFinalStatus } from "../services/bookingNotifier.js";
 
 /* ----------------------------- Utils / helpers ----------------------------- */
 
@@ -2193,7 +2194,7 @@ export const goglobalHotelAvailability = async (req, res) => {
 //       }
 //     }
 //     const isOfficeRole = (role) =>
-//       ["office_user", "admin", "finance"].includes(
+//       ["office_user", "admin", "finance_user"].includes(
 //         String(role || "").toLowerCase()
 //       );
 //     const office = isOfficeRole(req.user?.role);
@@ -2325,11 +2326,20 @@ export const goglobalHotelAvailability = async (req, res) => {
 //           bufferDays: safety?.bufferDays ?? bufferDays,
 //         };
 
-//     // FE-facing booking payload
+//     // ── Status mapping (supplier → platform)
+//     const rawStatus = parsed.status || null;
+//     const platformStatus = mapSupplierToPlatform(rawStatus);
+
+//     // FE-facing booking payload (հարստացված label-ներով)
 //     const booking = {
 //       goBookingCode: parsed.goBookingCode,
 //       goReference: parsed.goReference,
-//       status: parsed.status,
+//       status: platformStatus, // platform code
+//       statusLabel: platformStatusLabel(platformStatus), // human label
+//       _ops: {
+//         rawStatus, // supplier raw (C/RQ/RX/VCH/VRQ/...)
+//         rawStatusSub: supplierSubLabel(rawStatus), // e.g. "Voucher issued"
+//       },
 //       price: retail,
 //       ...(office ? { supplierPrice: { amount: net, currency: cur } } : {}),
 //       ...(office && breakdown ? { breakdown } : {}),
@@ -2344,6 +2354,13 @@ export const goglobalHotelAvailability = async (req, res) => {
 //       cancellation,
 //       remarksHtml: parsed.remarksHtml,
 //     };
+
+//     // վճարելի՞ է հիմա (օգտակար է FE-ին)
+//     booking.isPayable = isPayable(
+//       platformStatus,
+//       rawStatus,
+//       booking?.cancellation?.platform?.cutoffUtc
+//     );
 
 //     const meta = {
 //       provider: "goglobal",
@@ -2398,13 +2415,9 @@ export const goglobalHotelAvailability = async (req, res) => {
 //       };
 //       const paymentMethod = methodMap[methodIn] || "none";
 
-//       const rawStatus = parsed.status || null;
-//       const platformStatus = mapSupplierToPlatform(rawStatus);
-
 //       // 4) Build & save
 //       const orderDoc = new HotelOrder({
-//         // required first (we'll generate proper platformRef before save)
-//         platformRef: "TEMP",
+//         platformRef: "TEMP", // proper ref generated below, before save
 
 //         // who
 //         userId,
@@ -2413,7 +2426,7 @@ export const goglobalHotelAvailability = async (req, res) => {
 //         agencyName: req.user?.companyName || null,
 //         agentRef: agentReference || "",
 
-//         // status
+//         // status (platform)
 //         status: platformStatus,
 
 //         // supplier (ops-only)
@@ -2475,6 +2488,15 @@ export const goglobalHotelAvailability = async (req, res) => {
 
 //       // Generate platformRef BEFORE save (model requires it)
 //       orderDoc.platformRef = makePlatformRef(orderDoc._id);
+
+//       // ✨ NEW: fill identity + summary before save (userEmail, agencyName, summary.*)
+//       {
+//         const { set } = await ensureSummaryAndIdentity(
+//           orderDoc.toObject(),
+//           req.user
+//         );
+//         Object.assign(orderDoc, set);
+//       }
 
 //       await orderDoc.save();
 
@@ -2807,7 +2829,7 @@ export const goglobalBookingCreate = async (req, res) => {
       // Generate platformRef BEFORE save (model requires it)
       orderDoc.platformRef = makePlatformRef(orderDoc._id);
 
-      // ✨ NEW: fill identity + summary before save (userEmail, agencyName, summary.*)
+      // ✨ fill identity + summary before save (userEmail, agencyName, summary.*)
       {
         const { set } = await ensureSummaryAndIdentity(
           orderDoc.toObject(),
@@ -2817,6 +2839,13 @@ export const goglobalBookingCreate = async (req, res) => {
       }
 
       await orderDoc.save();
+
+      // ✉️ NEW: notify on final status at creation (e.g., C on first response)
+      try {
+        await notifyOnFinalStatus(orderDoc, null);
+      } catch (e) {
+        console.error("create notifyOnFinalStatus error:", e?.message || e);
+      }
 
       // Return platformRef to FE
       booking.platformRef = orderDoc.platformRef;
@@ -2838,6 +2867,7 @@ export const goglobalBookingCreate = async (req, res) => {
       .json({ message: "Booking create failed", error: e.message });
   }
 };
+
 
 // GET /api/v1/suppliers/goglobal/booking/details?goBookingCode=...
 // ALSO supports: /api/v1/suppliers/goglobal/bookings/:goBookingCode
@@ -3010,6 +3040,7 @@ export const goglobalBookingStatus = async (req, res) => {
 // POST /api/v1/suppliers/goglobal/booking/cancel
 // body: { goBookingCode: "..." }
 // ALSO supports: /api/v1/suppliers/goglobal/bookings/:goBookingCode/cancel  (PATCH/POST ըստ router-ի)
+// ⚠️ Legacy endpoint — այստեղ ՆԱՄԱԿ ՉԵՆՔ ՈՒՂԱՐԿՈՒՄ, որպեսզի չկրկնվի (նորմալ cancel-ը platformRef-ով է)
 export const goglobalBookingCancel = async (req, res) => {
   try {
     const goBookingCode =
@@ -3037,6 +3068,113 @@ export const goglobalBookingCancel = async (req, res) => {
   }
 };
 
+// // GET /api/v1/suppliers/goglobal/booking/:platformRef/status-sync
+// export const goglobalBookingStatusSyncByPlatformRef = async (req, res) => {
+//   try {
+//     const { platformRef } = req.params;
+//     const wantDebug = String(req.query?.debug || "") === "1";
+
+//     if (!platformRef) {
+//       return res.status(400).json({ message: "platformRef is required" });
+//     }
+
+//     const doc = await HotelOrder.findOne({ platformRef });
+//     if (!doc) return res.status(404).json({ message: "Order not found" });
+
+//     const goBookingCode = doc?.supplier?.bookingCode;
+//     if (!goBookingCode) {
+//       return res
+//         .status(409)
+//         .json({ message: "Supplier booking code is missing on order" });
+//     }
+
+//     // 1) Supplier STATUS (requestType = 5)
+//     const resp = await ggBookingStatus({ goBookingCode });
+//     const parsed = parseBookingStatus(resp?.__rawXml || resp); // { goBookingCode, goReference, status, netAmount, currency }
+//     const newRaw = parsed?.status || null;
+
+//     // fallback (շատ հազվադեպ) — եթե status parser-ը չտվեց, փորձենք SEARCH (reqType=4)
+//     let rawForPersist = newRaw;
+//     if (!rawForPersist) {
+//       const det = await ggBookingSearch({ goBookingCode });
+//       const p2 = parseBookingCreateOrDetails(det?.__rawXml || det);
+//       rawForPersist = p2?.status || null;
+//     }
+
+//     if (!rawForPersist) {
+//       const out = { message: "Could not read supplier status" };
+//       if (wantDebug) {
+//         out.debugPreview = {
+//           type: typeof resp,
+//           keys:
+//             resp && typeof resp === "object" ? Object.keys(resp) : undefined,
+//           xmlPreview:
+//             typeof resp === "string" ? String(resp).slice(0, 400) : undefined,
+//         };
+//       }
+//       return res.status(502).json(out);
+//     }
+
+//     // 2) Platform status map (C/RQ/RJ/RX/X/… → platform)
+//     const prevPlatform = doc.status || null;
+//     const prevRaw = doc?.supplier?.rawStatus || null;
+
+//     const nextPlatform = mapSupplierToPlatform(rawForPersist);
+
+//     // 3) Persist + history
+//     doc.supplier = doc.supplier || {};
+//     doc.supplier.rawStatus = rawForPersist;
+//     doc.status = nextPlatform;
+
+//     doc.events = doc.events || [];
+//     if (prevPlatform !== nextPlatform || prevRaw !== rawForPersist) {
+//       doc.events.push({
+//         at: new Date(),
+//         type: "status_change",
+//         from: prevPlatform,
+//         to: nextPlatform,
+//         rawFrom: prevRaw,
+//         rawTo: rawForPersist,
+//         source: "supplier",
+//       });
+//     }
+
+//     await doc.save();
+
+//     return res.json({
+//       ok: true,
+//       platformRef,
+//       supplierRaw: rawForPersist, // e.g. "X" / "C" / "RX"
+//       status: nextPlatform, // mapped platform code (քո platform/status դաշտը)
+//       statusLabel: platformStatusLabel(nextPlatform),
+//       changed: prevPlatform !== nextPlatform || prevRaw !== rawForPersist,
+//       prev: {
+//         raw: prevRaw,
+//         status: prevPlatform,
+//         statusLabel: platformStatusLabel(prevPlatform),
+//       },
+//       next: {
+//         raw: rawForPersist,
+//         status: nextPlatform,
+//         statusLabel: platformStatusLabel(nextPlatform),
+//       },
+//       ...(wantDebug
+//         ? {
+//             debug: {
+//               goBookingCode,
+//               parsed,
+//             },
+//           }
+//         : {}),
+//     });
+//   } catch (e) {
+//     console.error("status-sync error:", e);
+//     return res
+//       .status(500)
+//       .json({ message: "Status sync failed", error: e.message });
+//   }
+// };
+
 // GET /api/v1/suppliers/goglobal/booking/:platformRef/status-sync
 export const goglobalBookingStatusSyncByPlatformRef = async (req, res) => {
   try {
@@ -3062,7 +3200,7 @@ export const goglobalBookingStatusSyncByPlatformRef = async (req, res) => {
     const parsed = parseBookingStatus(resp?.__rawXml || resp); // { goBookingCode, goReference, status, netAmount, currency }
     const newRaw = parsed?.status || null;
 
-    // fallback (շատ հազվադեպ) — եթե status parser-ը չտվեց, փորձենք SEARCH (reqType=4)
+    // fallback — եթե status parser-ը չտվեց
     let rawForPersist = newRaw;
     if (!rawForPersist) {
       const det = await ggBookingSearch({ goBookingCode });
@@ -3095,8 +3233,10 @@ export const goglobalBookingStatusSyncByPlatformRef = async (req, res) => {
     doc.supplier.rawStatus = rawForPersist;
     doc.status = nextPlatform;
 
+    const changed = prevPlatform !== nextPlatform || prevRaw !== rawForPersist;
+
     doc.events = doc.events || [];
-    if (prevPlatform !== nextPlatform || prevRaw !== rawForPersist) {
+    if (changed) {
       doc.events.push({
         at: new Date(),
         type: "status_change",
@@ -3110,13 +3250,23 @@ export const goglobalBookingStatusSyncByPlatformRef = async (req, res) => {
 
     await doc.save();
 
+    // ✉️ Նամակ՝ միայն եթե real change կա → notifyOnFinalStatus ինքն է filter անում (C/X/RJ/VCH)
+    if (changed) {
+      try {
+        // pass plain object for templates
+        await notifyOnFinalStatus(doc.toObject ? doc.toObject() : doc, prevPlatform);
+      } catch (e) {
+        console.error("notifyOnFinalStatus (status-sync) failed:", e?.message || e);
+      }
+    }
+
     return res.json({
       ok: true,
       platformRef,
-      supplierRaw: rawForPersist, // e.g. "X" / "C" / "RX"
-      status: nextPlatform, // mapped platform code (քո platform/status դաշտը)
+      supplierRaw: rawForPersist,
+      status: nextPlatform,
       statusLabel: platformStatusLabel(nextPlatform),
-      changed: prevPlatform !== nextPlatform || prevRaw !== rawForPersist,
+      changed,
       prev: {
         raw: prevRaw,
         status: prevPlatform,
@@ -3144,6 +3294,116 @@ export const goglobalBookingStatusSyncByPlatformRef = async (req, res) => {
   }
 };
 
+// // POST /api/v1/suppliers/goglobal/booking/:platformRef/cancel
+// export const goglobalBookingCancelByPlatformRef = async (req, res) => {
+//   try {
+//     const { platformRef } = req.params;
+//     const wantDebug = String(req.query?.debug || "") === "1";
+
+//     if (!platformRef) {
+//       return res.status(400).json({ message: "platformRef is required" });
+//     }
+
+//     const doc = await HotelOrder.findOne({ platformRef });
+//     if (!doc) return res.status(404).json({ message: "Order not found" });
+
+//     const goBookingCode = doc?.supplier?.bookingCode;
+//     if (!goBookingCode) {
+//       return res
+//         .status(409)
+//         .json({ message: "Supplier booking code is missing on order" });
+//     }
+
+//     // 1) Try cancel
+//     const cancelResp = await ggBookingCancel({ goBookingCode });
+
+//     // 2) Immediately re-check status from supplier (source of truth)
+//     const statusResp = await ggBookingStatus({ goBookingCode });
+//     const parsed = parseBookingStatus(statusResp?.__rawXml || statusResp);
+//     const raw = parsed?.status || null;
+
+//     // fallback via search/details
+//     let finalRaw = raw;
+//     if (!finalRaw) {
+//       const det = await ggBookingSearch({ goBookingCode });
+//       const p2 = parseBookingCreateOrDetails(det?.__rawXml || det);
+//       finalRaw = p2?.status || null;
+//     }
+
+//     if (!finalRaw) {
+//       const out = { message: "Cancel done, but could not read final status" };
+//       if (wantDebug) {
+//         out.debug = {
+//           cancelPreview:
+//             typeof cancelResp === "string"
+//               ? cancelResp.slice(0, 400)
+//               : JSON.stringify(cancelResp)?.slice(0, 400),
+//           statusPreview:
+//             typeof statusResp === "string"
+//               ? statusResp.slice(0, 400)
+//               : JSON.stringify(statusResp)?.slice(0, 400),
+//         };
+//       }
+//       return res.status(200).json(out);
+//     }
+
+//     const prevPlatform = doc.status || null;
+//     const prevRaw = doc?.supplier?.rawStatus || null;
+//     const nextPlatform = mapSupplierToPlatform(finalRaw);
+
+//     // 3) Persist + history
+//     doc.supplier = doc.supplier || {};
+//     doc.supplier.rawStatus = finalRaw;
+//     doc.status = nextPlatform;
+
+//     doc.events = doc.events || [];
+//     doc.events.push({
+//       at: new Date(),
+//       type: "cancel", // կամ "status_change" — քո ճաշակով
+//       from: prevPlatform,
+//       to: nextPlatform,
+//       rawFrom: prevRaw,
+//       rawTo: finalRaw,
+//       source: "supplier",
+//     });
+
+//     await doc.save();
+
+//     return res.json({
+//       ok: true,
+//       platformRef,
+//       accepted: ["RX", "X"].includes(finalRaw), // GG-ն երբեմն RX first
+//       supplierRaw: finalRaw,
+//       status: nextPlatform,
+//       statusLabel: platformStatusLabel(nextPlatform),
+//       prev: {
+//         raw: prevRaw,
+//         status: prevPlatform,
+//         statusLabel: platformStatusLabel(prevPlatform),
+//       },
+//       next: {
+//         raw: finalRaw,
+//         status: nextPlatform,
+//         statusLabel: platformStatusLabel(nextPlatform),
+//       },
+//       ...(wantDebug
+//         ? {
+//             debug: {
+//               goBookingCode,
+//               cancelPreview:
+//                 typeof cancelResp === "string"
+//                   ? cancelResp.slice(0, 400)
+//                   : JSON.stringify(cancelResp)?.slice(0, 400),
+//             },
+//           }
+//         : {}),
+//     });
+//   } catch (e) {
+//     console.error("cancel-by-platformRef error:", e);
+//     return res.status(500).json({ message: "Cancel failed", error: e.message });
+//   }
+// };
+
 // POST /api/v1/suppliers/goglobal/booking/:platformRef/cancel
 export const goglobalBookingCancelByPlatformRef = async (req, res) => {
   try {
@@ -3164,10 +3424,10 @@ export const goglobalBookingCancelByPlatformRef = async (req, res) => {
         .json({ message: "Supplier booking code is missing on order" });
     }
 
-    // 1) Try cancel
+    // 1) Try cancel at supplier
     const cancelResp = await ggBookingCancel({ goBookingCode });
 
-    // 2) Immediately re-check status from supplier (source of truth)
+    // 2) Re-check status from supplier
     const statusResp = await ggBookingStatus({ goBookingCode });
     const parsed = parseBookingStatus(statusResp?.__rawXml || statusResp);
     const raw = parsed?.status || null;
@@ -3209,7 +3469,7 @@ export const goglobalBookingCancelByPlatformRef = async (req, res) => {
     doc.events = doc.events || [];
     doc.events.push({
       at: new Date(),
-      type: "cancel", // կամ "status_change" — քո ճաշակով
+      type: "cancel", // կամ 'status_change' — քո ճաշակով
       from: prevPlatform,
       to: nextPlatform,
       rawFrom: prevRaw,
@@ -3218,6 +3478,13 @@ export const goglobalBookingCancelByPlatformRef = async (req, res) => {
     });
 
     await doc.save();
+
+    // ✉️ Նամակը ուղարկում ենք հենց այստեղ (FE cancel → supplier cancel → persist → notify)
+    try {
+      await notifyOnFinalStatus(doc.toObject ? doc.toObject() : doc, prevPlatform);
+    } catch (e) {
+      console.error("notifyOnFinalStatus (cancel-by-platformRef) failed:", e?.message || e);
+    }
 
     return res.json({
       ok: true,
